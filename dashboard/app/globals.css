@@ -448,3 +448,109 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* --- layout com barra lateral nomeada (modelo de referência), cores próprias --- */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #94a3b8;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+.nav-item-active {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.nav-item-active svg {
+  color: #b8ff65;
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 260px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.search-box:focus-within {
+  border-color: rgba(184, 255, 101, 0.35);
+}
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+.search-box input::placeholder {
+  color: #64748b;
+}
+.bell-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f87171;
+  box-shadow: 0 0 0 2px #0d1721;
+}
+.kpi-card {
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.kpi-label {
+  font-size: 12px;
+  color: #8291a2;
+}
+.kpi-value {
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-tile {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.kpi-tile-lime {
+  color: #b8ff65;
+  background: rgba(184, 255, 101, 0.12);
+}
+.kpi-tile-cyan {
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.12);
+}
+.kpi-tile-amber {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+}
+.kpi-tile-violet {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.14);
+}
+a.meter-row {
+  text-decoration: none;
+}

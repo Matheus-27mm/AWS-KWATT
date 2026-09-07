@@ -1,6 +1,6 @@
 'use client';
 
-// Casca do painel: barra lateral com navegação, cabeçalho com estado da conexão e o conteúdo.
+// Casca do painel: barra lateral com navegação nomeada, cabeçalho com título, busca e sino.
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -11,17 +11,20 @@ import {
   Gauge,
   LayoutDashboard,
   Menu,
+  Search,
   Settings2,
+  X,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { relativeTime } from '@/lib/format';
 import type { DashboardData } from '@/lib/model';
 
@@ -32,7 +35,14 @@ const NAV = [
   { href: '/alertas', icon: Bell, label: 'Alertas' },
 ];
 
-function NavLinks({
+const SearchContext = createContext<string>('');
+
+/** Texto digitado na busca do cabeçalho; as páginas filtram medidores e alertas por ele. */
+export function useSearch(): string {
+  return useContext(SearchContext);
+}
+
+function NavList({
   pathname,
   onNavigate,
 }: {
@@ -40,30 +50,82 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   return (
-    <>
+    <nav aria-label="Navegação principal" className="flex flex-col gap-1">
       {NAV.map(({ href, icon: Icon, label }) => {
         const active =
           href === '/' ? pathname === '/' : pathname.startsWith(href);
         return (
-          <Tooltip key={href}>
-            <TooltipTrigger
-              render={
-                <Link
-                  href={href}
-                  aria-label={label}
-                  aria-current={active ? 'page' : undefined}
-                  onClick={onNavigate}
-                  className={`nav-icon ${active ? 'nav-icon-active' : ''}`}
-                />
-              }
-            >
-              <Icon className="size-[19px]" />
-            </TooltipTrigger>
-            <TooltipContent side="right">{label}</TooltipContent>
-          </Tooltip>
+          <Link
+            key={href}
+            href={href}
+            onClick={onNavigate}
+            aria-current={active ? 'page' : undefined}
+            className={`nav-item ${active ? 'nav-item-active' : ''}`}
+          >
+            <Icon className="size-4" />
+            <span>{label}</span>
+          </Link>
         );
       })}
-    </>
+    </nav>
+  );
+}
+
+function Sidebar({
+  pathname,
+  data,
+  onNavigate,
+}: {
+  pathname: string;
+  data: DashboardData | null;
+  onNavigate?: () => void;
+}) {
+  const settingsActive = pathname.startsWith('/configuracoes');
+  return (
+    <div className="flex h-full flex-col">
+      <Link
+        href="/"
+        onClick={onNavigate}
+        className="flex h-[72px] items-center gap-3 border-b border-white/6 px-5"
+      >
+        <span className="brand-mark" aria-hidden>
+          <Bolt className="size-4" fill="currentColor" />
+        </span>
+        <span className="text-[15px] font-semibold tracking-tight text-white">
+          KWATT
+        </span>
+      </Link>
+      <div className="flex-1 px-3 py-4">
+        <NavList pathname={pathname} onNavigate={onNavigate} />
+      </div>
+      <div className="border-t border-white/6 px-3 py-4">
+        <Link
+          href="/configuracoes"
+          onClick={onNavigate}
+          aria-current={settingsActive ? 'page' : undefined}
+          className={`nav-item ${settingsActive ? 'nav-item-active' : ''}`}
+        >
+          <Settings2 className="size-4" />
+          <span>Configurações</span>
+        </Link>
+        <div className="mt-3 flex items-center gap-3 px-2 text-xs text-slate-500">
+          <span className="grid size-8 place-items-center rounded-full bg-slate-800 text-[11px] font-bold text-slate-300 ring-1 ring-white/10">
+            {(data?.tenant.name ?? 'KW')
+              .split(' ')
+              .map((w) => w[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase()}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-slate-300">
+              {data?.tenant.name ?? 'Sem cliente'}
+            </span>
+            <span className="block truncate">{data?.siteName ?? ''}</span>
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -86,6 +148,7 @@ export function AppShell({
 }) {
   const pathname = usePathname() ?? '/';
   const [menuOpen, setMenuOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 5000);
@@ -93,50 +156,26 @@ export function AppShell({
   }, []);
 
   const isDemo = data?.source === 'demo';
-  const initials = (data?.tenant.name ?? 'KW')
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const recentAlerts = useMemo(() => {
+    if (!data) return 0;
+    const cutoff = data.updatedAt.getTime() - 3600_000;
+    return data.alerts.filter((a) => new Date(a.ts).getTime() >= cutoff).length;
+  }, [data]);
+
+  const status =
+    loading && !data
+      ? 'Carregando'
+      : error
+        ? 'Sem conexão'
+        : data
+          ? `Atualizado ${relativeTime(data.updatedAt, now)}`
+          : 'Sem dados';
 
   return (
-    <TooltipProvider>
+    <SearchContext.Provider value={search}>
       <div className="min-h-screen bg-background text-foreground">
-        <aside className="sidebar fixed inset-y-0 left-0 z-30 hidden w-[76px] flex-col items-center border-r border-white/6 lg:flex">
-          <div className="flex h-20 items-center">
-            <Link href="/" className="brand-mark" aria-label="KWATT">
-              <Bolt className="size-5" fill="currentColor" />
-            </Link>
-          </div>
-          <nav
-            aria-label="Navegação principal"
-            className="mt-5 flex flex-1 flex-col gap-3"
-          >
-            <NavLinks pathname={pathname} />
-          </nav>
-          <div className="mb-6 flex flex-col items-center gap-3">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Link
-                    href="/configuracoes"
-                    aria-label="Configurações"
-                    className={`nav-icon ${pathname.startsWith('/configuracoes') ? 'nav-icon-active' : ''}`}
-                  />
-                }
-              >
-                <Settings2 className="size-[19px]" />
-              </TooltipTrigger>
-              <TooltipContent side="right">Configurações</TooltipContent>
-            </Tooltip>
-            <div
-              className="grid size-9 place-items-center rounded-full bg-slate-800 text-xs font-bold text-slate-300 ring-1 ring-white/10"
-              title={data?.tenant.name}
-            >
-              {initials}
-            </div>
-          </div>
+        <aside className="sidebar fixed inset-y-0 left-0 z-30 hidden w-[232px] border-r border-white/6 lg:block">
+          <Sidebar pathname={pathname} data={data} />
         </aside>
 
         {menuOpen && (
@@ -147,29 +186,27 @@ export function AppShell({
               className="absolute inset-0 bg-black/60"
               onClick={() => setMenuOpen(false)}
             />
-            <nav
-              aria-label="Navegação"
-              className="sidebar absolute inset-y-0 left-0 flex w-[76px] flex-col items-center gap-3 border-r border-white/6 pt-6"
-            >
-              <NavLinks
+            <div className="sidebar absolute inset-y-0 left-0 w-[232px] border-r border-white/6">
+              <button
+                type="button"
+                aria-label="Fechar"
+                className="absolute top-5 right-3 grid size-8 place-items-center rounded-md text-slate-400 hover:bg-white/5"
+                onClick={() => setMenuOpen(false)}
+              >
+                <X className="size-4" />
+              </button>
+              <Sidebar
                 pathname={pathname}
+                data={data}
                 onNavigate={() => setMenuOpen(false)}
               />
-              <Link
-                href="/configuracoes"
-                aria-label="Configurações"
-                onClick={() => setMenuOpen(false)}
-                className="nav-icon mt-auto mb-6"
-              >
-                <Settings2 className="size-[19px]" />
-              </Link>
-            </nav>
+            </div>
           </div>
         )}
 
-        <main className="lg:pl-[76px]">
+        <main className="lg:pl-[232px]">
           <header className="sticky top-0 z-20 border-b border-white/6 bg-[#081018]/88 backdrop-blur-xl">
-            <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-7 lg:px-9">
+            <div className="mx-auto flex min-h-[72px] max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   className="nav-icon lg:hidden"
@@ -181,7 +218,7 @@ export function AppShell({
                 </button>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h1 className="truncate text-base font-semibold text-white sm:text-lg">
+                    <h1 className="truncate text-lg font-semibold text-white sm:text-xl">
                       {title}
                     </h1>
                     {isDemo && (
@@ -189,33 +226,50 @@ export function AppShell({
                         DEMO
                       </Badge>
                     )}
-                    {error && (
-                      <Badge className="border border-rose-400/20 bg-rose-400/10 text-[10px] text-rose-300">
-                        SEM CONEXÃO
-                      </Badge>
-                    )}
                   </div>
-                  <p className="mt-0.5 hidden truncate text-xs text-slate-500 sm:block">
-                    {subtitle ??
-                      (data ? `${data.siteName} · ${data.tenant.name}` : '')}
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                    {subtitle ?? status}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="hidden items-center gap-2 text-xs text-slate-400 md:flex">
-                  <span className={`live-dot ${error ? 'live-dot-off' : ''}`} />
-                  {loading && !data
-                    ? 'Carregando'
-                    : data
-                      ? `Atualizado ${relativeTime(data.updatedAt, now)}`
-                      : 'Sem dados'}
-                </div>
                 {actions}
+                <label className="search-box hidden md:flex">
+                  <Search className="size-4 text-slate-500" />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar medidor ou alerta"
+                    aria-label="Buscar"
+                  />
+                </label>
+                <Link
+                  href="/alertas"
+                  aria-label={
+                    recentAlerts
+                      ? `${recentAlerts} alertas na última hora`
+                      : 'Alertas'
+                  }
+                  className="nav-icon relative"
+                  title={
+                    recentAlerts
+                      ? `${recentAlerts} alertas na última hora`
+                      : 'Sem alertas na última hora'
+                  }
+                >
+                  <Bell className="size-[18px]" />
+                  {recentAlerts > 0 && <span className="bell-dot" />}
+                </Link>
+                <span
+                  className={`live-dot ml-1 hidden md:block ${error ? 'live-dot-off' : ''}`}
+                  title={status}
+                />
               </div>
             </div>
           </header>
 
-          <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-7 lg:px-9 lg:py-8">
+          <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
             {error && (
               <div className="mb-4 rounded-lg border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
                 <strong className="font-semibold">
@@ -244,6 +298,6 @@ export function AppShell({
           </div>
         </main>
       </div>
-    </TooltipProvider>
+    </SearchContext.Provider>
   );
 }

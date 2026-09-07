@@ -116,7 +116,8 @@ function demandAt(
 }
 
 export function demoDashboard(range: Range, now = new Date()): DashboardData {
-  const hours = range === '7d' ? 7 * 24 : 24;
+  // 48 h na visão de 24 h: o comparativo "contra ontem no mesmo horário" precisa do dia anterior
+  const hours = range === '7d' ? 7 * 24 : 48;
   const windowMs = 15 * 60_000;
   const firstStart =
     Math.floor((now.getTime() - hours * 3600_000) / windowMs) * windowMs;

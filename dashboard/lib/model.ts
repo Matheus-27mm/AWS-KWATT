@@ -76,6 +76,12 @@ export type DashboardData = {
     secondsInWindow: number | null;
     excessKw: number;
     riskyMeters: MeterView[];
+    /** variação da demanda atual contra a janela fechada há uma hora, em % */
+    currentDeltaPct: number | null;
+    /** variação do consumo de hoje contra ontem até a mesma hora, em % */
+    kwhTodayDeltaPct: number | null;
+    /** participação de cada medidor na demanda atual */
+    shares: Array<{ id: string; name: string; kw: number; pct: number }>;
   };
   curve: CurvePoint[];
   curveStats: { min: number; avg: number; peak: number } | null;
@@ -260,6 +266,47 @@ export function buildDashboard(input: {
     (s, m) => s + Math.max(0, (m.projectedKw ?? 0) - (m.contractedKw ?? 0)),
     0,
   );
+
+  // Demanda de uma hora atrás: a janela fechada que começou entre 60 e 75 min antes de agora.
+  const hourAgoStart = new Date(now.getTime() - 75 * 60_000).toISOString();
+  const hourAgoEnd = new Date(now.getTime() - 60 * 60_000).toISOString();
+  const hourAgoKw = meters.reduce<number | null>((total, m) => {
+    const w = m.windows.find(
+      (x) => x.start >= hourAgoStart && x.start < hourAgoEnd,
+    );
+    if (!w) return total;
+    return (total ?? 0) + w.demand_kw;
+  }, null);
+  const currentDeltaPct =
+    currentKw != null && hourAgoKw
+      ? ((currentKw - hourAgoKw) / hourAgoKw) * 100
+      : null;
+
+  // Consumo de ontem até a mesma hora de hoje.
+  const yesterdayStart = new Date(
+    new Date(dayStart).getTime() - 86_400_000,
+  ).toISOString();
+  const yesterdaySameTime = new Date(now.getTime() - 86_400_000).toISOString();
+  const kwhYesterday = meters.reduce(
+    (total, m) =>
+      total +
+      m.windows
+        .filter((w) => w.start >= yesterdayStart && w.start < yesterdaySameTime)
+        .reduce((s, w) => s + w.kwh, 0),
+    0,
+  );
+  const kwhTodayDeltaPct =
+    kwhYesterday > 0 ? ((kwhToday - kwhYesterday) / kwhYesterday) * 100 : null;
+
+  const shareTotal = withCurrent.reduce((s, m) => s + (m.currentKw ?? 0), 0);
+  const shares = withCurrent
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      kw: m.currentKw ?? 0,
+      pct: shareTotal > 0 ? ((m.currentKw ?? 0) / shareTotal) * 100 : 0,
+    }))
+    .sort((a, b) => b.kw - a.kw);
   const reference = riskyMeters[0] ?? withCurrent[0] ?? meters[0];
 
   return {
@@ -280,6 +327,9 @@ export function buildDashboard(input: {
       secondsInWindow: reference?.secondsInWindow ?? null,
       excessKw,
       riskyMeters,
+      currentDeltaPct,
+      kwhTodayDeltaPct,
+      shares,
     },
     curve,
     curveStats,
