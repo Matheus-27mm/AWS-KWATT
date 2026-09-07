@@ -29,6 +29,23 @@ resource "aws_dynamodb_table" "this" {
     type = "S"
   }
 
+  attribute {
+    name = "GSI1PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI1SK"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "states-by-ingestion"
+    hash_key        = "GSI1PK"
+    range_key       = "GSI1SK"
+    projection_type = "ALL"
+  }
+
   ttl {
     attribute_name = "ttl"
     enabled        = true
@@ -208,6 +225,85 @@ resource "aws_lambda_event_source_mapping" "outbox" {
       })
     }
   }
+}
+
+# ---------------------------------------------------------------- medidores silenciosos e janelas pendentes
+
+resource "aws_iam_role" "sweeper" {
+  name               = "${var.name}-sweeper"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "sweeper_logs" {
+  role       = aws_iam_role.sweeper.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "sweeper" {
+  statement {
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:TransactWriteItems",
+    ]
+    resources = [aws_dynamodb_table.this.arn, "${aws_dynamodb_table.this.arn}/index/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "sweeper" {
+  name   = "acesso"
+  role   = aws_iam_role.sweeper.id
+  policy = data.aws_iam_policy_document.sweeper.json
+}
+
+resource "aws_cloudwatch_log_group" "sweeper" {
+  name              = "/aws/lambda/${var.name}-sweeper"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_lambda_function" "sweeper" {
+  function_name    = "${var.name}-sweeper"
+  role             = aws_iam_role.sweeper.arn
+  handler          = "energia.lambdas.sweeper.handler"
+  runtime          = "python3.12"
+  architectures    = ["x86_64"]
+  filename         = var.core_zip
+  source_code_hash = filebase64sha256(var.core_zip)
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      ENERGIA_TABLE_NAME = aws_dynamodb_table.this.name
+      ENERGIA_EVENT_BUS  = aws_cloudwatch_event_bus.this.name
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.sweeper,
+    aws_iam_role_policy_attachment.sweeper_logs,
+    aws_iam_role_policy.sweeper,
+  ]
+}
+
+resource "aws_cloudwatch_event_rule" "sweeper" {
+  name                = "${var.name}-sweeper"
+  description         = "Detecta medidores silenciosos e finaliza janelas após o limite de atraso."
+  schedule_expression = "rate(1 minute)"
+}
+
+resource "aws_cloudwatch_event_target" "sweeper" {
+  rule      = aws_cloudwatch_event_rule.sweeper.name
+  target_id = "sweeper"
+  arn       = aws_lambda_function.sweeper.arn
+}
+
+resource "aws_lambda_permission" "sweeper_events" {
+  statement_id  = "AllowScheduledEvent"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.sweeper.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.sweeper.arn
 }
 
 resource "aws_iam_role_policy" "processor" {

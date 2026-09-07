@@ -34,8 +34,8 @@ from ..domain.models import (
     MonthRollup,
     OpenWindow,
     Reading,
-    TenantConfig,
     Severity,
+    TenantConfig,
 )
 from ..domain.rules import check_power_factor, check_projection, check_window
 from ..domain.tariff import WINDOW, month_key, period_for, window_start

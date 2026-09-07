@@ -28,6 +28,18 @@ def dynamo_repo():
             AttributeDefinitions=[
                 {"AttributeName": "PK", "AttributeType": "S"},
                 {"AttributeName": "SK", "AttributeType": "S"},
+                {"AttributeName": "GSI1PK", "AttributeType": "S"},
+                {"AttributeName": "GSI1SK", "AttributeType": "S"},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": "states-by-ingestion",
+                    "KeySchema": [
+                        {"AttributeName": "GSI1PK", "KeyType": "HASH"},
+                        {"AttributeName": "GSI1SK", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
             ],
             BillingMode="PAY_PER_REQUEST",
         )
@@ -74,6 +86,7 @@ def test_estado_janela_mes_e_alerta_fazem_ida_e_volta(dynamo_repo, tenant, meter
 
     assert repo.get_tenant("acme").name == tenant.name
     assert repo.list_meters("acme")[0].meter_id == "linha-1"
+    assert [s.key for s in repo.list_states_ingested_before(ts)] == [meter.key]
 
 
 def test_escrita_condicional_detecta_conflito(dynamo_repo, tenant, meter):

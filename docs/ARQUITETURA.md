@@ -72,9 +72,10 @@ aceita fila FIFO. O processador foi desenhado para isso em vez de fingir que nã
   A janela anterior fecha com o que tinha e `samples` menor que o esperado denuncia o furo.
 - Custo dessa robustez: o alerta de ultrapassagem sai ~70 s depois do fim da janela. O alerta de
   projeção, aos 5 min de janela, continua sendo o que chega a tempo de desligar carga.
-- Limitação conhecida: a última janela antes de o medidor parar de enviar só fecha quando chega
-  a próxima leitura. Um varredor agendado (EventBridge a cada minuto) que feche janelas com
-  carência vencida e dispare alerta de **medidor mudo** é o próximo item do roadmap.
+- Um varredor agendado consulta o índice `states-by-ingestion` a cada minuto. Após 2 minutos sem
+  ingestão, dispara uma vez o alerta de **medidor mudo**. A janela só é finalizada após 2 horas,
+  preservando o horizonte de atraso suportado pelas oito janelas abertas; uma nova leitura rearma
+  o alerta. Backlogs maiores continuam íntegros no lake, mas não são recalculados no plano operacional.
 
 ## Limites e como crescer
 

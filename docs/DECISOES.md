@@ -11,6 +11,7 @@ tem um número ou um fato por trás.
 | **SQS entre o IoT Core e a Lambda** | Rajada de 100 gateways reconectando ao mesmo tempo vira fila, não erro. Retry e DLQ vêm de graça. Concorrência máxima de 2 reduz colisões por medidor e faz backpressure. |
 | **DynamoDB tabela única, sob demanda** | Acesso é sempre por chave (medidor, janela, mês). Sob demanda custa zero parado e escala sem provisionar. |
 | **Transação DynamoDB + outbox** | Estado e derivados são atômicos; eventos ficam duráveis na mesma transação e saem pelo DynamoDB Stream. Não existe janela entre salvar estado e publicar evento. |
+| **Índice de estados + varredor agendado** | Detecta silêncio em 2 min sem scan da tabela. Só finaliza após 2 h para não destruir o backlog curto guardado pelo gateway. |
 | **Lake escrito pela própria Lambda, em JSON Lines gzip** | O lote de até 100 leituras já está na memória da Lambda; virar um arquivo por partição é uma chamada `PutObject`. Zero serviço a mais, funciona no plano gratuito. Parquet fica para um job de compactação quando o volume justificar. |
 | **Glue com projeção de partições** | Sem crawler, sem `MSCK REPAIR`. O Athena calcula os caminhos a partir do filtro. |
 | **Athena** | Volume de gigabytes por cliente por ano. Paga por consulta, com corte de 1 GB no workgroup. |
