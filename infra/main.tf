@@ -64,5 +64,6 @@ module "api" {
   event_bus_name     = module.processing.event_bus_name
   event_bus_arn      = module.processing.event_bus_arn
   admin_api_key      = var.admin_api_key
+  cors_origins       = var.cors_origins
   log_retention_days = var.log_retention_days
 }

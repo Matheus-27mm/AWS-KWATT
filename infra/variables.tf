@@ -51,6 +51,12 @@ variable "whatsapp_template" {
   default = "alerta_energia"
 }
 
+variable "cors_origins" {
+  type        = string
+  default     = "http://localhost:3000,http://127.0.0.1:3000"
+  description = "Origens do painel autorizadas a chamar a API, separadas por vírgula. Acrescente a URL publicada do painel."
+}
+
 variable "build_dir" {
   type        = string
   default     = "../build"

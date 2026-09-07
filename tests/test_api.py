@@ -85,6 +85,25 @@ def test_fluxo_completo_cadastro_ingestao_consulta(monkeypatch):
     assert len(c.get("/tenants/acme/alerts", headers=h).json()) >= 2
 
 
+def test_cors_libera_o_painel_e_bloqueia_origem_desconhecida():
+    c = _client()
+    pre = c.options(
+        "/tenants/acme/meters",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "x-api-key",
+        },
+    )
+    assert pre.status_code == 200
+    assert pre.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "x-api-key" in pre.headers["access-control-allow-headers"].lower()
+
+    other = c.get("/health", headers={"Origin": "https://site-desconhecido.example"})
+    assert other.status_code == 200
+    assert "access-control-allow-origin" not in other.headers
+
+
 def test_chaves_erradas_sao_rejeitadas():
     c = _client()
     assert (

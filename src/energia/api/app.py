@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .. import __version__
 from ..config import Settings, get_settings
@@ -44,6 +45,16 @@ def create_app(
     app.state.settings = settings
     app.state.repo = repo or _build_repo(settings)
     app.state.sink = sink or _build_sink(settings)
+
+    # O painel roda no navegador e chama a API com a chave do cliente no cabeçalho.
+    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["X-API-Key", "X-Admin-Key", "Content-Type"],
+        max_age=600,
+    )
 
     app.include_router(admin.router)
     app.include_router(tenants.router)

@@ -335,6 +335,25 @@ terraform fmt aprovado
 terraform validate aprovado
 ```
 
+## Painel (dashboard/)
+
+Interface web do cliente: visão geral com curva de carga e janela atual, medidores, análises do mês
+e histórico de alertas. React 19 com vinext (compatível com Next), Tailwind 4, shadcn e recharts.
+
+```bash
+cd dashboard
+npm install
+npm run dev          # http://localhost:3000
+```
+
+Sem chave configurada o painel mostra dados demonstrativos. Em **Configurações**, informe o endereço
+da API (saída `api_url` do Terraform), o cliente, a unidade e a chave `ek_...` gerada ao criar o
+cliente; a chave fica só no navegador. A API precisa liberar a origem do painel na variável
+`cors_origins` do Terraform (localhost já vem liberado).
+
+Verificações: `npx tsc --noEmit`, `npm run lint`, `npm run build`. A publicação (Cloudflare Workers pelo
+`wrangler` que o scaffold configurou, ou S3 com CloudFront) ainda não foi decidida.
+
 ## Estrutura do repositório
 
 ```text
@@ -346,6 +365,7 @@ src/energia/api/          aplicação FastAPI e routers
 edge/                     gateway Modbus → MQTT e configuração de campo
 simulator/                carga HTTP/MQTT com perfil industrial
 analytics/                consultas Athena
+dashboard/                painel web (vinext + React + Tailwind + shadcn): app/, components/, hooks/, lib/
 infra/                    módulos Terraform da plataforma
 scripts/                  build, provisionamento, diagnóstico e runner local
 tests/                    testes unitários, integração DynamoDB com Moto e regressões

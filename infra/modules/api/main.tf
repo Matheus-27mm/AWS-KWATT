@@ -8,6 +8,7 @@ variable "admin_api_key" {
   type      = string
   sensitive = true
 }
+variable "cors_origins" { type = string }
 variable "log_retention_days" { type = number }
 
 data "aws_iam_policy_document" "assume" {
@@ -71,6 +72,7 @@ resource "aws_lambda_function" "api" {
       ENERGIA_TABLE_NAME    = var.table_name
       ENERGIA_EVENT_BUS     = var.event_bus_name
       ENERGIA_ADMIN_API_KEY = var.admin_api_key
+      ENERGIA_CORS_ORIGINS  = var.cors_origins
     }
   }
 
