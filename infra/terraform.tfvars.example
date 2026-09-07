@@ -1,0 +1,11 @@
+# Copie para terraform.tfvars (ignorado pelo git) e preencha.
+region        = "sa-east-1"
+alert_email   = "voce@exemplo.com"
+budget_usd    = 20
+admin_api_key = "gere-uma-chave-longa-e-aleatoria"
+
+# Opcional: alertas por WhatsApp via Meta Cloud API (template aprovado).
+# whatsapp_token    = "EAAG..."
+# whatsapp_phone_id = "1234567890"
+# whatsapp_to       = "5592999990000"
+# whatsapp_template = "alerta_energia"

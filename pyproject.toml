@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "energia-industrial"
+version = "0.1.0"
+description = "Medição de energia por linha e turno para a indústria média do Polo Industrial de Manaus: ingestão MQTT, janelas de demanda, alertas e lake analítico na AWS."
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.3,<3",
+  "boto3>=1.34",
+  "fastapi>=0.111,<1",
+  "mangum>=0.17,<1",
+  "httpx>=0.27",
+  "paho-mqtt>=2.1,<3",
+  "pyyaml>=6",
+  "tzdata>=2024.1",
+]
+
+[project.optional-dependencies]
+edge = ["pymodbus>=3.6,<4"]
+dev = [
+  "pytest>=8",
+  "moto[dynamodb]>=5",
+  "ruff>=0.5",
+  "uvicorn>=0.30",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests", "scripts", "simulator", "edge"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DTZ", "RUF"]
+# B008: `Depends(...)` em parâmetro é o padrão do FastAPI, não um bug.
+# UP042: `str, Enum` serializa igual em JSON e no DynamoDB; StrEnum não acrescenta nada aqui.
+ignore = ["B008", "UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+# O runner ajusta sys.path antes de importar o projeto; é proposital.
+"scripts/local_runner.py" = ["E402"]

@@ -1,0 +1,7 @@
+# Lambda da API.
+pydantic>=2.7,<3
+pydantic-settings>=2.3,<3
+fastapi>=0.111,<1
+mangum>=0.17,<1
+httpx>=0.27
+tzdata>=2024.1

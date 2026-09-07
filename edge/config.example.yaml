@@ -1,0 +1,38 @@
+# Copie para edge/config.yaml e ajuste. O mapa de registradores depende do modelo do medidor:
+# consulte o manual (Kron Mult-K, Embrasul, Schneider PM2xxx, ABB M4M...). Os endereços abaixo
+# são ilustrativos e precisam ser confirmados no manual antes do primeiro uso.
+
+tenant_id: demo
+site_id: fabrica
+interval_s: 10
+topic_prefix: energia
+queue_path: edge/queue.sqlite
+
+mqtt:
+  host: xxxxxxxxxxxxxx-ats.iot.sa-east-1.amazonaws.com   # saída do Terraform: iot_endpoint
+  port: 8883
+  client_id: gw-fabrica-01                                # tem de ser igual ao nome da Thing
+  ca: edge/certs/AmazonRootCA1.pem
+  cert: edge/certs/gw-fabrica-01/cert.pem
+  key: edge/certs/gw-fabrica-01/private.key
+
+meters:
+  - meter_id: injetoras
+    host: 192.168.10.21
+    port: 502
+    unit: 1
+    word_order: big
+    registers:
+      kw:        { address: 3054, type: f32, input: true, scale: 0.001 }   # W -> kW
+      kvar:      { address: 3068, type: f32, input: true, scale: 0.001 }   # var -> kvar
+      pf:        { address: 3084, type: f32, input: true }
+      v:         { address: 3036, type: f32, input: true }
+      a:         { address: 3010, type: f32, input: true }
+      hz:        { address: 3110, type: f32, input: true }
+      kwh_total: { address: 3204, type: u32, input: true, scale: 0.001 }
+  - meter_id: compressores
+    host: 192.168.10.22
+    unit: 1
+    registers:
+      kw:  { address: 3054, type: f32, input: true, scale: 0.001 }
+      pf:  { address: 3084, type: f32, input: true }

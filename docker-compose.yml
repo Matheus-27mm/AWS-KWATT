@@ -1,0 +1,10 @@
+# Broker MQTT local para testar o gateway e o simulador sem AWS.
+#   docker compose up -d
+#   python -m simulator.simulate --mode mqtt --mqtt-host 127.0.0.1 --speed 60
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
