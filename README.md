@@ -337,13 +337,15 @@ terraform validate aprovado
 
 ## Painel (dashboard/)
 
-Interface web do cliente: visão geral com curva de carga e janela atual, medidores, análises do mês
-e histórico de alertas. React 19 com vinext (compatível com Next), Tailwind 4, shadcn e recharts.
+Página de entrada em `/` (apresentação do produto com a prévia do painel em modo demonstração) e o
+painel do cliente em `/painel`: visão geral com curva de carga, distribuição da carga e janela atual,
+medidores, análises do mês, histórico de alertas e configurações. React 19 com vinext (compatível
+com Next), Tailwind 4, shadcn e recharts.
 
 ```bash
 cd dashboard
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:3000 (entrada) e http://localhost:3000/painel
 ```
 
 Sem chave configurada o painel mostra dados demonstrativos. Em **Configurações**, informe o endereço

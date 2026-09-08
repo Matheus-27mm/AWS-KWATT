@@ -1,608 +1,278 @@
 'use client';
 
+// Página de entrada no layout de referência: barra superior, faixa de anúncio, título em degradê,
+// subtítulo, botão principal e a prévia do painel. Cores do KWATT: azul-marinho e verde-limão.
+
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Activity,
-  ArrowDownRight,
-  ArrowUpRight,
-  Bolt,
-  Check,
-  CircleGauge,
-  Clock3,
-  Radio,
-  ShieldCheck,
-  TriangleAlert,
-  Zap,
-} from 'lucide-react';
+import { ArrowRight, Bolt, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
-import { LoadChart } from '@/components/load-chart';
-import { ShareDonut } from '@/components/share-donut';
-import { AppShell, useSearch } from '@/components/shell';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useDashboard } from '@/hooks/use-dashboard';
-import {
-  fmtDateLong,
-  fmtDuration,
-  fmtKw,
-  fmtNumber,
-  fmtPf,
-  fmtTime,
-  periodLabel,
-  relativeTime,
-  windowLabel,
-} from '@/lib/format';
-import type { DashboardData, Range } from '@/lib/model';
+import { DashboardPreview } from '@/components/dashboard-preview';
 
-type Tone = 'lime' | 'cyan' | 'amber' | 'violet';
+const REPO = 'https://github.com/Matheus-27mm/AWS-KWATT';
 
-function Delta({
-  pct,
-  suffix,
-  invert = false,
-}: {
-  pct: number | null;
-  suffix: string;
-  invert?: boolean;
-}) {
-  if (pct == null)
-    return <span className="text-slate-500">sem comparativo</span>;
-  const up = pct >= 0;
-  const good = invert ? !up : up;
-  const Icon = up ? ArrowUpRight : ArrowDownRight;
-  return (
-    <span
-      className={`flex items-center gap-1 ${good ? 'text-lime-300' : 'text-amber-300'}`}
-    >
-      <Icon className="size-3.5" />
-      {up ? '+' : ''}
-      {fmtNumber(pct, 1)}% <span className="text-slate-500">{suffix}</span>
-    </span>
-  );
-}
+const LINKS = [
+  { href: '#como-funciona', label: 'Como funciona' },
+  { href: '#para-quem', label: 'Para quem' },
+  { href: `${REPO}#readme`, label: 'Documentação', external: true },
+];
 
-function KpiCard({
+function NavLink({
+  href,
   label,
-  value,
-  unit,
-  icon: Icon,
-  tone,
-  foot,
+  external,
+  onClick,
+  className = '',
 }: {
+  href: string;
   label: string;
-  value: string;
-  unit?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  tone: Tone;
-  foot: React.ReactNode;
+  external?: boolean;
+  onClick?: () => void;
+  className?: string;
 }) {
   return (
-    <Card className="kpi-card border-0">
-      <CardContent className="flex items-start justify-between gap-3 p-5">
-        <div className="min-w-0">
-          <p className="kpi-label">{label}</p>
-          <div className="mt-2 flex items-end gap-1.5">
-            <strong className="kpi-value">{value}</strong>
-            {unit && (
-              <span className="mb-1 text-sm font-medium text-slate-500">
-                {unit}
-              </span>
-            )}
-          </div>
-          <div className="mt-2 text-xs">{foot}</div>
-        </div>
-        <span className={`kpi-tile kpi-tile-${tone}`}>
-          <Icon className="size-[18px]" />
-        </span>
-      </CardContent>
-    </Card>
-  );
-}
-
-function headline(data: DashboardData): string {
-  if (data.consolidated.riskyMeters.length)
-    return 'A fábrica está próxima do limite.';
-  if (data.meters.some((m) => m.status === 'mudo'))
-    return 'Há medidor sem leitura recente.';
-  if (data.meters.every((m) => m.status === 'sem_dados'))
-    return 'Aguardando as primeiras leituras.';
-  return 'Operação dentro do contrato.';
-}
-
-export default function Home() {
-  const [range, setRange] = useState<Range>('24h');
-  const [ack, setAck] = useState<string[]>([]);
-  const { data, loading, error } = useDashboard(range);
-  const search = useSearch().trim().toLowerCase();
-
-  const c = data?.consolidated;
-  const tz = data?.tenant.tz ?? 'America/Manaus';
-  const now = data?.updatedAt ?? new Date();
-  const tolerance = data?.tenant.demand_tolerance ?? 0.05;
-  const limit =
-    c?.contractedKw != null ? c.contractedKw * (1 + tolerance) : null;
-  const atRisk =
-    c?.projectedKw != null && limit != null && c.projectedKw > limit;
-  const projectionPct =
-    c?.projectedKw != null && c.contractedKw
-      ? (c.projectedKw / c.contractedKw) * 100
-      : null;
-  const usagePct =
-    c?.currentKw != null && c.contractedKw
-      ? (c.currentKw / c.contractedKw) * 100
-      : null;
-  const excess =
-    atRisk && c?.projectedKw != null && c.contractedKw != null
-      ? c.projectedKw - c.contractedKw
-      : 0;
-
-  const meters = useMemo(
-    () =>
-      (data?.meters ?? []).filter(
-        (m) =>
-          !search ||
-          m.name.toLowerCase().includes(search) ||
-          m.id.includes(search),
-      ),
-    [data, search],
-  );
-  const visibleAlerts = useMemo(
-    () =>
-      (data?.alerts ?? [])
-        .filter((a) => !ack.includes(a.id))
-        .filter(
-          (a) =>
-            !search ||
-            a.meterName.toLowerCase().includes(search) ||
-            a.title.toLowerCase().includes(search),
-        )
-        .slice(0, 5),
-    [data, ack, search],
-  );
-
-  // WebMCP: expõe ações do painel a assistentes que rodem no navegador.
-  useEffect(() => {
-    const context = document.modelContext;
-    if (!context?.registerTool || !data) return;
-    const lifecycle = new AbortController();
-    void Promise.resolve(
-      context.registerTool(
-        {
-          name: 'set_range',
-          title: 'Definir período do gráfico',
-          description:
-            'Escolhe 24h ou 7d para a curva de carga do painel energético.',
-          inputSchema: {
-            type: 'object',
-            properties: { range: { type: 'string', enum: ['24h', '7d'] } },
-            required: ['range'],
-            additionalProperties: false,
-          },
-          annotations: { readOnlyHint: false, untrustedContentHint: false },
-          execute(input) {
-            const r = (input as { range?: string }).range;
-            if (r !== '24h' && r !== '7d') throw new Error('Período inválido.');
-            setRange(r);
-            return { range: r };
-          },
-        },
-        { signal: lifecycle.signal },
-      ),
-    ).catch(console.error);
-    return () => lifecycle.abort();
-  }, [data]);
-
-  return (
-    <AppShell
-      title="Visão geral"
-      subtitle={
-        data
-          ? `${headline(data)} ${fmtDateLong(now, tz)}, ${fmtTime(now, tz)}.`
-          : undefined
-      }
-      data={data}
-      error={error}
-      loading={loading}
+    <a
+      href={href}
+      onClick={onClick}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noreferrer' : undefined}
+      className={`text-sm text-white/60 transition-colors hover:text-white ${className}`}
     >
-      {!data || !c ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-xl bg-white/5" />
+      {label}
+    </a>
+  );
+}
+
+function Navigation() {
+  const [open, setOpen] = useState(false);
+  return (
+    <header className="fixed top-0 z-50 w-full border-b border-white/6 bg-[#081018]/80 backdrop-blur-md">
+      <nav className="mx-auto max-w-7xl px-6 py-4">
+        <div className="relative flex items-center justify-between">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 text-lg font-semibold text-white"
+          >
+            <span
+              className="brand-mark"
+              style={{ width: 32, height: 32 }}
+              aria-hidden
+            >
+              <Bolt className="size-4" fill="currentColor" />
+            </span>
+            KWATT
+          </Link>
+
+          <div className="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-8 md:flex">
+            {LINKS.map((l) => (
+              <NavLink key={l.href} {...l} />
+            ))}
+          </div>
+
+          <div className="hidden items-center gap-3 md:flex">
+            <Link href="/painel" className="landing-btn landing-btn-ghost">
+              Entrar
+            </Link>
+            <Link href="/painel" className="landing-btn landing-btn-solid">
+              Ver demonstração
+            </Link>
+          </div>
+
+          <button
+            type="button"
+            className="text-white md:hidden"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={open}
+          >
+            {open ? <X className="size-6" /> : <Menu className="size-6" />}
+          </button>
+        </div>
+      </nav>
+
+      {open && (
+        <div className="border-t border-white/6 bg-[#081018]/95 backdrop-blur-md md:hidden animate-[slideDown_0.3s_ease-out]">
+          <div className="flex flex-col gap-4 px-6 py-4">
+            {LINKS.map((l) => (
+              <NavLink
+                key={l.href}
+                {...l}
+                onClick={() => setOpen(false)}
+                className="py-2"
+              />
+            ))}
+            <div className="flex flex-col gap-2 border-t border-white/6 pt-4">
+              <Link href="/painel" className="landing-btn landing-btn-ghost">
+                Entrar
+              </Link>
+              <Link href="/painel" className="landing-btn landing-btn-solid">
+                Ver demonstração
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+function Hero() {
+  return (
+    <section className="relative flex min-h-screen flex-col items-center justify-start px-6 py-24 md:py-28 animate-[fadeIn_0.6s_ease-out]">
+      <aside className="mb-8 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 backdrop-blur-sm">
+        <span className="text-center text-xs whitespace-nowrap text-slate-400">
+          Alertas de demanda pelo WhatsApp, antes de a janela fechar
+        </span>
+        <a
+          href="#como-funciona"
+          className="flex items-center gap-1 text-xs whitespace-nowrap text-lime-300 transition-all hover:text-lime-200 active:scale-95"
+        >
+          Como funciona
+          <ArrowRight className="size-3" />
+        </a>
+      </aside>
+
+      <h1 className="landing-title mb-6 max-w-3xl px-6 text-center text-4xl leading-tight font-medium md:text-5xl lg:text-6xl">
+        Sua fábrica dentro do contrato, <br className="hidden sm:block" />
+        janela por janela
+      </h1>
+
+      <p className="mb-10 max-w-2xl px-6 text-center text-sm text-slate-400 md:text-base">
+        Medição por linha e turno, janelas de 15 minutos iguais às da
+        distribuidora <br className="hidden md:block" />e aviso a tempo de
+        desligar carga. Feito para a indústria média do Polo Industrial de
+        Manaus.
+      </p>
+
+      <div className="relative z-10 mb-16 flex items-center gap-4">
+        <Link
+          href="/painel"
+          className="landing-btn landing-btn-gradient h-12 rounded-lg px-8 text-base"
+        >
+          Ver o painel
+        </Link>
+      </div>
+
+      <div className="relative w-full max-w-5xl pb-20">
+        <div
+          className="pointer-events-none absolute left-1/2 z-0 h-[420px] w-[90%] -translate-x-1/2 rounded-full blur-3xl"
+          style={{
+            top: '-18%',
+            background:
+              'radial-gradient(closest-side, rgba(184,255,101,0.22), rgba(34,211,238,0.12) 55%, transparent 100%)',
+          }}
+          aria-hidden
+        />
+        <div className="relative z-10">
+          <DashboardPreview />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const STEPS = [
+  {
+    n: '01',
+    title: 'Medidor na linha',
+    text: 'Um medidor Modbus por linha ou máquina, lido a cada 10 segundos por um gateway na fábrica. Sem obra: aproveita o quadro que já existe.',
+  },
+  {
+    n: '02',
+    title: 'A nuvem fecha a janela',
+    text: 'Cada 15 minutos vira uma janela de demanda igual à que a distribuidora fatura. Aos 5 minutos o sistema já projeta como ela vai fechar.',
+  },
+  {
+    n: '03',
+    title: 'Aviso a tempo de agir',
+    text: 'Projeção acima do contrato, ultrapassagem confirmada e fator de potência abaixo de 0,92 chegam pelo WhatsApp e ficam no painel.',
+  },
+];
+
+function Sections() {
+  return (
+    <>
+      <section
+        id="como-funciona"
+        className="mx-auto max-w-6xl scroll-mt-24 px-6 pb-20"
+      >
+        <p className="mb-3 text-center text-xs font-medium tracking-[.18em] text-lime-300/80 uppercase">
+          Como funciona
+        </p>
+        <h2 className="mb-10 text-center text-3xl font-medium text-white md:text-4xl">
+          Do medidor ao aviso em três passos
+        </h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {STEPS.map((s) => (
+            <div key={s.n} className="panel-card rounded-xl p-6">
+              <p className="font-mono text-xs text-lime-300">{s.n}</p>
+              <h3 className="mt-3 text-lg font-semibold text-white">
+                {s.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                {s.text}
+              </p>
+            </div>
           ))}
         </div>
-      ) : (
-        <>
-          <section
-            aria-label="Indicadores principais"
-            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-          >
-            <KpiCard
-              label="Demanda atual"
-              value={c.currentKw != null ? fmtNumber(c.currentKw) : '—'}
-              unit="kW"
-              icon={Zap}
-              tone="lime"
-              foot={
-                <Delta
-                  pct={c.currentDeltaPct}
-                  suffix="contra uma hora atrás"
-                  invert
-                />
-              }
-            />
-            <KpiCard
-              label="Projeção da janela"
-              value={c.projectedKw != null ? fmtNumber(c.projectedKw) : '—'}
-              unit="kW"
-              icon={CircleGauge}
-              tone={atRisk ? 'amber' : 'cyan'}
-              foot={
-                projectionPct != null ? (
-                  <span className={atRisk ? 'text-amber-300' : 'text-lime-300'}>
-                    {Math.round(projectionPct)}% do contrato
-                    <span className="text-slate-500">
-                      {c.secondsInWindow != null
-                        ? ` · fecha em ${fmtDuration(Math.max(0, 900 - c.secondsInWindow))}`
-                        : ''}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-slate-500">
-                    aguardando 5 min de janela
-                  </span>
-                )
-              }
-            />
-            <KpiCard
-              label="Consumo hoje"
-              value={fmtNumber(c.kwhToday, 0)}
-              unit="kWh"
-              icon={Bolt}
-              tone="violet"
-              foot={
-                <Delta
-                  pct={c.kwhTodayDeltaPct}
-                  suffix="contra ontem até agora"
-                  invert
-                />
-              }
-            />
-            <KpiCard
-              label="Fator de potência"
-              value={fmtPf(c.worstPf)}
-              icon={Activity}
-              tone={
-                c.worstPf != null &&
-                Math.abs(c.worstPf) < data.tenant.pf_reference
-                  ? 'amber'
-                  : 'lime'
-              }
-              foot={
-                <span
-                  className={
-                    c.worstPf != null &&
-                    Math.abs(c.worstPf) < data.tenant.pf_reference
-                      ? 'text-amber-300'
-                      : 'text-slate-500'
-                  }
-                >
-                  referência {fmtNumber(data.tenant.pf_reference, 2)}
-                  {c.worstPfMeter ? ` · ${c.worstPfMeter}` : ''}
-                </span>
-              }
-            />
-          </section>
+      </section>
 
-          <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,1fr)]">
-            <Card className="panel-card border-0">
-              <CardHeader className="flex-row items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base font-semibold text-white">
-                    Curva de carga
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Demanda consolidada por janela de 15 min
-                  </p>
-                </div>
-                <Select
-                  value={range}
-                  onValueChange={(v) => setRange((v as Range) ?? '24h')}
-                >
-                  <SelectTrigger className="h-8 w-[150px] border-white/10 bg-white/[.04] text-xs text-slate-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="24h">Últimas 24 horas</SelectItem>
-                    <SelectItem value="7d">Últimos 7 dias</SelectItem>
-                  </SelectContent>
-                </Select>
-              </CardHeader>
-              <CardContent className="h-[280px] pt-2">
-                <LoadChart
-                  data={data.curve.map((p) => ({ start: p.start, kw: p.kw }))}
-                  contracted={c.contractedKw}
-                  tz={tz}
-                  range={range}
-                  height={270}
-                />
-              </CardContent>
-              <div className="grid grid-cols-3 border-t border-white/6 px-5 py-3">
-                <div>
-                  <p className="chart-stat-label">Mínima</p>
-                  <p className="chart-stat">
-                    {data.curveStats ? fmtKw(data.curveStats.min) : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="chart-stat-label">Média</p>
-                  <p className="chart-stat">
-                    {data.curveStats ? fmtKw(data.curveStats.avg) : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="chart-stat-label">Pico</p>
-                  <p
-                    className={`chart-stat ${data.curveStats && c.contractedKw != null && data.curveStats.peak > c.contractedKw ? 'text-amber-300' : ''}`}
-                  >
-                    {data.curveStats ? fmtKw(data.curveStats.peak) : '—'}
-                  </p>
-                </div>
-              </div>
-            </Card>
+      <section
+        id="para-quem"
+        className="mx-auto max-w-6xl scroll-mt-24 px-6 pb-24"
+      >
+        <div className="panel-card grid gap-8 rounded-2xl p-8 md:grid-cols-2 md:p-12">
+          <div>
+            <p className="mb-3 text-xs font-medium tracking-[.18em] text-lime-300/80 uppercase">
+              Para quem
+            </p>
+            <h2 className="text-3xl font-medium text-white md:text-4xl">
+              A segunda camada do Polo
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-slate-400 md:text-base">
+              Injeção plástica, metalurgia leve, embalagem e componentes:
+              fábricas do Grupo A, em tarifa verde ou azul, que pagam demanda
+              contratada e ultrapassagem sem enxergar a janela em que
+              estouraram.
+            </p>
+          </div>
+          <ul className="grid gap-3 self-center text-sm text-slate-300">
+            {[
+              'Uma única janela acima do contrato custa o dobro da tarifa de demanda no mês inteiro.',
+              'Fator de potência abaixo de 0,92 vira excedente reativo na fatura.',
+              'A curva de carga de 12 meses é o que decide a migração para o mercado livre em 2027.',
+            ].map((item) => (
+              <li key={item} className="flex gap-3">
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-lime-300" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-            <Card className="panel-card border-0">
-              <CardHeader className="flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-semibold text-white">
-                    Distribuição da carga
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Participação de cada medidor na demanda agora
-                  </p>
-                </div>
-                <Link
-                  href="/medidores"
-                  className="text-xs text-slate-400 hover:text-white"
-                >
-                  Ver todos
-                </Link>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <ShareDonut shares={c.shares} totalKw={c.currentKw} />
-              </CardContent>
-            </Card>
-          </section>
+      <footer className="border-t border-white/6 px-6 py-8 text-center text-xs text-slate-600">
+        <span>KWATT · inteligência energética industrial · Manaus</span>
+        <span className="mx-2">·</span>
+        <a
+          href={REPO}
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-slate-300"
+        >
+          GitHub
+        </a>
+      </footer>
+    </>
+  );
+}
 
-          <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,1fr)]">
-            <Card className="panel-card border-0">
-              <CardHeader className="flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-semibold text-white">
-                    Medidores
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {data.meters.length} cadastrados
-                    {data.meters.some((m) => m.lastReadingAt)
-                      ? ` · última leitura ${relativeTime(
-                          data.meters
-                            .map((m) => m.lastReadingAt)
-                            .filter((x): x is string => !!x)
-                            .sort()
-                            .at(-1)!,
-                          now,
-                        )}`
-                      : ''}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-400 hover:bg-white/5 hover:text-white"
-                  render={<Link href="/medidores" />}
-                >
-                  Ver todos
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="meter-table">
-                  <div className="meter-head">
-                    <span>Equipamento</span>
-                    <span>Carga</span>
-                    <span>Potência</span>
-                    <span>FP</span>
-                  </div>
-                  {meters.length === 0 && (
-                    <p className="px-5 py-6 text-sm text-slate-500">
-                      Nenhum medidor corresponde à busca.
-                    </p>
-                  )}
-                  {meters.map((m) => (
-                    <Link key={m.id} href="/medidores" className="meter-row">
-                      <span className="flex items-center gap-3 text-left">
-                        <span
-                          className={`status-ring ${m.status === 'atencao' || m.status === 'critico' ? 'status-warning' : ''} ${m.status === 'mudo' || m.status === 'sem_dados' ? 'status-off' : ''}`}
-                        >
-                          <Radio className="size-3.5" />
-                        </span>
-                        <span>
-                          <strong>{m.name}</strong>
-                          <small>{m.statusText}</small>
-                        </span>
-                      </span>
-                      <span className="load-cell">
-                        <i
-                          style={{ width: `${Math.min(m.loadPct ?? 0, 100)}%` }}
-                        />
-                        <small>
-                          {m.loadPct != null ? `${m.loadPct}%` : '—'}
-                        </small>
-                      </span>
-                      <span className="font-mono text-sm text-slate-200">
-                        {fmtKw(m.currentKw)}
-                      </span>
-                      <span
-                        className={`font-mono text-sm ${m.currentPf != null && Math.abs(m.currentPf) < data.tenant.pf_reference ? 'text-amber-300' : 'text-slate-300'}`}
-                      >
-                        {fmtPf(m.currentPf)}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid gap-4">
-              <Card className="panel-card border-0">
-                <CardHeader className="flex-row items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base font-semibold text-white">
-                      Janela atual
-                    </CardTitle>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {c.windowStart
-                        ? `${windowLabel(c.windowStart, tz)} · ${periodLabel(c.periodNow)}`
-                        : 'sem janela aberta'}
-                    </p>
-                  </div>
-                  <Badge
-                    className={
-                      atRisk
-                        ? 'border border-amber-400/20 bg-amber-400/10 text-amber-300'
-                        : 'border border-lime-400/20 bg-lime-400/10 text-lime-300'
-                    }
-                  >
-                    {atRisk ? 'Risco' : 'Normal'}
-                  </Badge>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-2 flex justify-between text-xs text-slate-400">
-                    <span>
-                      uso {usagePct != null ? `${Math.round(usagePct)}%` : '—'}
-                    </span>
-                    <span>
-                      projeção{' '}
-                      {projectionPct != null
-                        ? `${Math.round(projectionPct)}%`
-                        : '—'}
-                    </span>
-                  </div>
-                  <Progress
-                    value={Math.min(projectionPct ?? 0, 100)}
-                    className="projection-progress"
-                    aria-label="Projeção em relação ao contrato"
-                  />
-                  <div className="mt-4 space-y-2.5">
-                    <div className="detail-row">
-                      <span>Contratada</span>
-                      <strong>{fmtKw(c.contractedKw, 0)}</strong>
-                    </div>
-                    <div className="detail-row">
-                      <span>Projetada</span>
-                      <strong className={atRisk ? 'text-amber-300' : ''}>
-                        {fmtKw(c.projectedKw)}
-                      </strong>
-                    </div>
-                  </div>
-                  <div className="action-note mt-4">
-                    <Clock3 className="mt-0.5 size-4 shrink-0 text-amber-300" />
-                    <p>
-                      {atRisk ? (
-                        <>
-                          Reduzir ao menos{' '}
-                          <strong>{fmtNumber(excess)} kW</strong> agora mantém a
-                          janela dentro da tolerância.
-                        </>
-                      ) : (
-                        <>
-                          Dentro do contrato. Ultrapassagem custa o dobro da
-                          tarifa de demanda.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="panel-card border-0">
-                <CardHeader className="flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base font-semibold text-white">
-                      Alertas recentes
-                    </CardTitle>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Eventos que pedem atenção
-                    </p>
-                  </div>
-                  <Link
-                    href="/alertas"
-                    className="text-xs text-slate-400 hover:text-white"
-                  >
-                    Ver todos
-                  </Link>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {visibleAlerts.length ? (
-                    visibleAlerts.map((a) => {
-                      const Icon =
-                        a.tone === 'critical' ? TriangleAlert : Activity;
-                      return (
-                        <div
-                          className={`alert-item alert-${a.tone}`}
-                          key={a.id}
-                        >
-                          <span className="alert-icon">
-                            <Icon className="size-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex justify-between gap-3">
-                              <strong>{a.title}</strong>
-                              <time dateTime={a.ts} title={fmtTime(a.ts, tz)}>
-                                {relativeTime(a.ts, now)}
-                              </time>
-                            </div>
-                            <p>
-                              {a.meterName} · {a.detail}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            className="ack-button"
-                            aria-label={`Ocultar: ${a.title}`}
-                            title="Ocultar neste navegador"
-                            onClick={() => setAck((x) => [...x, a.id])}
-                          >
-                            <Check className="size-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="grid min-h-28 place-items-center text-center">
-                      <div>
-                        <ShieldCheck className="mx-auto size-6 text-lime-300" />
-                        <p className="mt-2 text-sm text-slate-300">
-                          Nenhum alerta
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-        </>
-      )}
-    </AppShell>
+export default function Landing() {
+  return (
+    <main className="landing min-h-screen bg-background text-foreground">
+      <Navigation />
+      <Hero />
+      <Sections />
+    </main>
   );
 }

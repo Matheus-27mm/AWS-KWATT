@@ -29,10 +29,10 @@ import { relativeTime } from '@/lib/format';
 import type { DashboardData } from '@/lib/model';
 
 const NAV = [
-  { href: '/', icon: LayoutDashboard, label: 'Visão geral' },
-  { href: '/medidores', icon: Gauge, label: 'Medidores' },
-  { href: '/analises', icon: Activity, label: 'Análises' },
-  { href: '/alertas', icon: Bell, label: 'Alertas' },
+  { href: '/painel', icon: LayoutDashboard, label: 'Visão geral' },
+  { href: '/painel/medidores', icon: Gauge, label: 'Medidores' },
+  { href: '/painel/analises', icon: Activity, label: 'Análises' },
+  { href: '/painel/alertas', icon: Bell, label: 'Alertas' },
 ];
 
 const SearchContext = createContext<string>('');
@@ -53,7 +53,9 @@ function NavList({
     <nav aria-label="Navegação principal" className="flex flex-col gap-1">
       {NAV.map(({ href, icon: Icon, label }) => {
         const active =
-          href === '/' ? pathname === '/' : pathname.startsWith(href);
+          href === '/painel'
+            ? pathname === '/painel' || pathname === '/painel/'
+            : pathname.startsWith(href);
         return (
           <Link
             key={href}
@@ -80,7 +82,7 @@ function Sidebar({
   data: DashboardData | null;
   onNavigate?: () => void;
 }) {
-  const settingsActive = pathname.startsWith('/configuracoes');
+  const settingsActive = pathname.startsWith('/painel/configuracoes');
   return (
     <div className="flex h-full flex-col">
       <Link
@@ -100,7 +102,7 @@ function Sidebar({
       </div>
       <div className="border-t border-white/6 px-3 py-4">
         <Link
-          href="/configuracoes"
+          href="/painel/configuracoes"
           onClick={onNavigate}
           aria-current={settingsActive ? 'page' : undefined}
           className={`nav-item ${settingsActive ? 'nav-item-active' : ''}`}
@@ -245,7 +247,7 @@ export function AppShell({
                   />
                 </label>
                 <Link
-                  href="/alertas"
+                  href="/painel/alertas"
                   aria-label={
                     recentAlerts
                       ? `${recentAlerts} alertas na última hora`
@@ -277,7 +279,7 @@ export function AppShell({
                 </strong>{' '}
                 {error} {data ? 'Mostrando os últimos dados recebidos.' : ''}
                 <Link
-                  href="/configuracoes"
+                  href="/painel/configuracoes"
                   className="ml-2 underline underline-offset-4"
                 >
                   Revisar configurações

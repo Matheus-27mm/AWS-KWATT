@@ -554,3 +554,91 @@ body {
 a.meter-row {
   text-decoration: none;
 }
+
+/* --- página de entrada (layout de referência com as cores do KWATT) --- */
+.landing {
+  font-family: var(--font-poppins), var(--font-geist-sans), sans-serif;
+}
+.landing-title {
+  background: linear-gradient(
+    to bottom,
+    #ffffff,
+    #ffffff,
+    rgba(255, 255, 255, 0.6)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.05em;
+}
+.landing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 0.15s;
+}
+.landing-btn-ghost {
+  color: #ffffff;
+}
+.landing-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.landing-btn-solid {
+  color: #10170b;
+  background: #b8ff65;
+}
+.landing-btn-solid:hover {
+  background: #cbff8a;
+}
+.landing-btn-gradient {
+  color: #10170b;
+  background: linear-gradient(
+    to bottom,
+    #d6ff9d,
+    #b8ff65 60%,
+    rgba(184, 255, 101, 0.75)
+  );
+  box-shadow: 0 0 30px rgba(184, 255, 101, 0.18);
+}
+.landing-btn-gradient:hover {
+  transform: scale(1.05);
+}
+.landing-btn-gradient:active {
+  transform: scale(0.95);
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
