@@ -1,10 +1,12 @@
 'use client';
 
-// Rosca com a participação de cada medidor na demanda atual.
+// Rosca com a participação de cada medidor na demanda atual. Anima só na primeira renderização.
 
+import { useState } from 'react';
 import { Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 import { fmtKw, fmtNumber } from '@/lib/format';
+import { useReducedMotion } from '@/lib/prefs';
 
 export const SHARE_COLORS = [
   '#b8ff65',
@@ -27,9 +29,9 @@ function Tip({
   const item = payload?.[0]?.payload;
   if (!active || !item) return null;
   return (
-    <div className="rounded-lg border border-slate-700 bg-[#101923]/95 px-3 py-2 shadow-2xl">
-      <p className="text-xs text-slate-400">{item.name}</p>
-      <p className="mt-1 font-mono text-sm font-semibold text-white">
+    <div className="rounded-lg border border-white/10 bg-[#141c25] px-3 py-2 shadow-xl">
+      <p className="text-[11px] text-[#8b98a8]">{item.name}</p>
+      <p className="num mt-1 text-sm font-medium text-white">
         {fmtKw(item.kw)} · {fmtNumber(item.pct, 0)}%
       </p>
     </div>
@@ -39,63 +41,75 @@ function Tip({
 export function ShareDonut({
   shares,
   totalKw,
+  height = 200,
 }: {
   shares: Share[];
   totalKw: number | null;
+  height?: number;
 }) {
+  const reduced = useReducedMotion();
+  const [animate, setAnimate] = useState(true);
+
   const slices = shares.map((s, i) => ({
     ...s,
     fill: SHARE_COLORS[i % SHARE_COLORS.length],
   }));
   if (!shares.length) {
     return (
-      <div className="grid h-full min-h-[220px] place-items-center text-sm text-slate-500">
+      <div className="grid min-h-[200px] w-full place-items-center text-sm text-[#6b7887]">
         Sem leituras para distribuir.
       </div>
     );
   }
   return (
-    <div className="grid h-full grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(150px,auto)]">
-      <div className="relative h-[220px]">
+    <div className="grid w-full items-center gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(160px,auto)]">
+      <div className="relative" style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={slices}
               dataKey="kw"
               nameKey="name"
-              innerRadius="62%"
-              outerRadius="92%"
-              paddingAngle={2}
-              stroke="#0d1721"
-              strokeWidth={2}
-              isAnimationActive={false}
+              innerRadius="70%"
+              outerRadius="100%"
+              paddingAngle={3}
+              cornerRadius={3}
+              stroke="none"
+              isAnimationActive={animate && !reduced}
+              onAnimationEnd={() => setAnimate(false)}
+              animationDuration={900}
+              animationEasing="ease-out"
             />
             <Tooltip content={<Tip />} />
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
           <div>
-            <p className="font-mono text-xl font-semibold text-white">
+            <p className="num text-2xl font-semibold text-white">
               {totalKw != null ? fmtNumber(totalKw, 0) : '—'}
             </p>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">
-              kW agora
-            </p>
+            <p className="eyebrow mt-0.5">kW agora</p>
           </div>
         </div>
       </div>
-      <ul className="space-y-2 text-sm">
-        {shares.map((s, i) => (
-          <li key={s.id} className="flex items-center justify-between gap-3">
-            <span className="flex min-w-0 items-center gap-2 text-slate-300">
+      <ul className="row-list text-sm">
+        {slices.map((s) => (
+          <li
+            key={s.id}
+            className="flex items-center justify-between gap-3 py-2"
+          >
+            <span className="flex min-w-0 items-center gap-2 text-[#c7d0da]">
               <span
-                className="size-2.5 shrink-0 rounded-full"
-                style={{ background: SHARE_COLORS[i % SHARE_COLORS.length] }}
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: s.fill }}
               />
               <span className="truncate">{s.name}</span>
             </span>
-            <span className="font-mono text-slate-200">
-              {fmtNumber(s.pct, 0)}%
+            <span className="num flex gap-3 text-[#8b98a8]">
+              <span>{fmtKw(s.kw, 0)}</span>
+              <span className="w-9 text-right text-white">
+                {fmtNumber(s.pct, 0)}%
+              </span>
             </span>
           </li>
         ))}

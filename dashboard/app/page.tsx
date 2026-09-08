@@ -46,7 +46,7 @@ function NavLink({
 function Navigation() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-white/6 bg-[#081018]/80 backdrop-blur-md">
+    <header className="fixed top-0 z-50 w-full border-b border-white/[.07] bg-[#0b1117]/80 backdrop-blur-md">
       <nav className="mx-auto max-w-7xl px-6 py-4">
         <div className="relative flex items-center justify-between">
           <Link
@@ -91,7 +91,7 @@ function Navigation() {
       </nav>
 
       {open && (
-        <div className="border-t border-white/6 bg-[#081018]/95 backdrop-blur-md md:hidden animate-[slideDown_0.3s_ease-out]">
+        <div className="border-t border-white/[.07] bg-[#0b1117]/95 backdrop-blur-md md:hidden animate-[slideDown_0.3s_ease-out]">
           <div className="flex flex-col gap-4 px-6 py-4">
             {LINKS.map((l) => (
               <NavLink
@@ -101,7 +101,7 @@ function Navigation() {
                 className="py-2"
               />
             ))}
-            <div className="flex flex-col gap-2 border-t border-white/6 pt-4">
+            <div className="flex flex-col gap-2 border-t border-white/[.07] pt-4">
               <Link href="/painel" className="landing-btn landing-btn-ghost">
                 Entrar
               </Link>
@@ -120,7 +120,7 @@ function Hero() {
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-start px-6 py-20 md:py-24 animate-[fadeIn_0.6s_ease-out]">
       <aside className="mb-8 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 backdrop-blur-sm">
-        <span className="text-center text-xs whitespace-nowrap text-slate-400">
+        <span className="text-center text-xs whitespace-nowrap text-[#8b98a8]">
           Alertas de demanda pelo WhatsApp, antes de a janela fechar
         </span>
         <a
@@ -137,7 +137,7 @@ function Hero() {
         janela por janela
       </h1>
 
-      <p className="mb-10 max-w-2xl px-6 text-center text-sm text-slate-400 md:text-base">
+      <p className="mb-10 max-w-2xl px-6 text-center text-sm text-[#8b98a8] md:text-base">
         Medição por linha e turno, janelas de 15 minutos iguais às da
         distribuidora <br className="hidden md:block" />e aviso a tempo de
         desligar carga. Feito para a indústria média do Polo Industrial de
@@ -204,12 +204,15 @@ function Sections() {
         </h2>
         <div className="grid gap-4 md:grid-cols-3">
           {STEPS.map((s) => (
-            <div key={s.n} className="panel-card rounded-xl p-6">
-              <p className="font-mono text-xs text-lime-300">{s.n}</p>
+            <div
+              key={s.n}
+              className="rounded-xl border border-white/[.08] bg-[#10171f] p-6"
+            >
+              <p className="num text-xs font-medium text-lime-300">{s.n}</p>
               <h3 className="mt-3 text-lg font-semibold text-white">
                 {s.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              <p className="mt-2 text-sm leading-relaxed text-[#8b98a8]">
                 {s.text}
               </p>
             </div>
@@ -221,7 +224,7 @@ function Sections() {
         id="para-quem"
         className="mx-auto max-w-6xl scroll-mt-24 px-6 pb-24"
       >
-        <div className="panel-card grid gap-8 rounded-2xl p-8 md:grid-cols-2 md:p-12">
+        <div className="grid gap-8 rounded-2xl border border-white/[.08] bg-[#10171f] p-8 md:grid-cols-2 md:p-12">
           <div>
             <p className="mb-3 text-xs font-medium tracking-[.18em] text-lime-300/80 uppercase">
               Para quem
@@ -229,14 +232,14 @@ function Sections() {
             <h2 className="text-3xl font-medium text-white md:text-4xl">
               A segunda camada do Polo
             </h2>
-            <p className="mt-4 text-sm leading-relaxed text-slate-400 md:text-base">
+            <p className="mt-4 text-sm leading-relaxed text-[#8b98a8] md:text-base">
               Injeção plástica, metalurgia leve, embalagem e componentes:
               fábricas do Grupo A, em tarifa verde ou azul, que pagam demanda
               contratada e ultrapassagem sem enxergar a janela em que
               estouraram.
             </p>
           </div>
-          <ul className="grid gap-3 self-center text-sm text-slate-300">
+          <ul className="grid gap-3 self-center text-sm text-[#c7d0da]">
             {[
               'Uma única janela acima do contrato custa o dobro da tarifa de demanda no mês inteiro.',
               'Fator de potência abaixo de 0,92 vira excedente reativo na fatura.',
@@ -251,14 +254,14 @@ function Sections() {
         </div>
       </section>
 
-      <footer className="border-t border-white/6 px-6 py-8 text-center text-xs text-slate-600">
+      <footer className="border-t border-white/[.07] px-6 py-8 text-center text-xs text-[#6b7887]">
         <span>KWATT · inteligência energética industrial · Manaus</span>
         <span className="mx-2">·</span>
         <a
           href={REPO}
           target="_blank"
           rel="noreferrer"
-          className="hover:text-slate-300"
+          className="hover:text-[#c7d0da]"
         >
           GitHub
         </a>
@@ -269,7 +272,7 @@ function Sections() {
 
 export default function Landing() {
   return (
-    <main className="landing min-h-screen bg-background text-foreground">
+    <main className="min-h-screen bg-background text-foreground">
       <Navigation />
       <Hero />
       <Sections />

@@ -3,9 +3,15 @@
 import { useMemo, useState } from 'react';
 import { Activity, ShieldCheck, TriangleAlert } from 'lucide-react';
 
-import { AppShell } from '@/components/shell';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppShell, useSearch } from '@/components/shell';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -23,6 +29,7 @@ const ALL = '__todos__';
 
 export default function AlertasPage() {
   const { data, loading, error } = useDashboard('24h');
+  const search = useSearch().trim().toLowerCase();
   const [kind, setKind] = useState<string>(ALL);
   const [meter, setMeter] = useState<string>(ALL);
   const now = data?.updatedAt ?? new Date();
@@ -33,9 +40,12 @@ export default function AlertasPage() {
       (data?.alerts ?? []).filter(
         (a) =>
           (kind === ALL || a.kind === kind) &&
-          (meter === ALL || a.meterId === meter),
+          (meter === ALL || a.meterId === meter) &&
+          (!search ||
+            a.meterName.toLowerCase().includes(search) ||
+            a.title.toLowerCase().includes(search)),
       ),
-    [data, kind, meter],
+    [data, kind, meter, search],
   );
 
   const byDay = useMemo(() => {
@@ -56,14 +66,20 @@ export default function AlertasPage() {
   return (
     <AppShell
       title="Alertas"
+      subtitle={
+        data ? `${data.alerts.length} no histórico · ficam 180 dias` : undefined
+      }
       data={data}
       error={error}
       loading={loading}
       actions={
         data && (
-          <>
+          <div className="hidden items-center gap-2 lg:flex">
             <Select value={meter} onValueChange={(v) => setMeter(v ?? ALL)}>
-              <SelectTrigger className="h-9 w-[150px] border-white/10 bg-white/[.04] text-slate-200">
+              <SelectTrigger
+                size="sm"
+                className="w-[160px] border-white/10 bg-white/[.03] text-xs"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -76,7 +92,10 @@ export default function AlertasPage() {
               </SelectContent>
             </Select>
             <Select value={kind} onValueChange={(v) => setKind(v ?? ALL)}>
-              <SelectTrigger className="h-9 w-[170px] border-white/10 bg-white/[.04] text-slate-200">
+              <SelectTrigger
+                size="sm"
+                className="w-[190px] border-white/10 bg-white/[.03] text-xs"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -88,54 +107,52 @@ export default function AlertasPage() {
                 ))}
               </SelectContent>
             </Select>
-          </>
+          </div>
         )
       }
     >
       {!data ? (
-        <Skeleton className="h-64 rounded-xl bg-white/5" />
+        <Skeleton className="h-64 rounded-xl bg-white/[.04]" />
       ) : (
-        <>
-          <section className="grid gap-3 sm:grid-cols-3">
-            {(Object.keys(ALERT_TITLES) as AlertKind[]).map((k) => (
-              <Card key={k} className="metric-card border-0">
-                <CardHeader>
-                  <p className="metric-label">{ALERT_TITLES[k]}</p>
-                  <div className="mt-3 flex items-end gap-1.5">
-                    <strong className="metric-value">{counts[k] ?? 0}</strong>
-                    <span className="mb-1 text-sm font-medium text-slate-500">
-                      no histórico
-                    </span>
+        <div className="space-y-4">
+          <section className="grid gap-4 sm:grid-cols-3">
+            {(Object.keys(ALERT_TITLES) as AlertKind[]).map((k, i) => (
+              <Card
+                key={k}
+                className="fade-up"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <CardContent>
+                  <p className="label">{ALERT_TITLES[k]}</p>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span className="kpi-value">{counts[k] ?? 0}</span>
+                    <span className="text-sm text-[#6b7887]">no histórico</span>
                   </div>
-                </CardHeader>
+                </CardContent>
               </Card>
             ))}
           </section>
 
-          <Card className="panel-card mt-3 border-0">
-            <CardHeader className="flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold text-white">
-                  Histórico
-                </CardTitle>
-                <p className="mt-1 text-xs text-slate-500">
-                  {filtered.length} de {data.alerts.length} alertas · os alertas
-                  ficam 180 dias no sistema
-                </p>
-              </div>
-              <Badge
-                variant="outline"
-                className="border-white/10 text-slate-400"
-              >
-                {data.source === 'demo' ? 'demonstração' : 'ao vivo'}
-              </Badge>
+          <Card className="fade-up" style={{ animationDelay: '200ms' }}>
+            <CardHeader>
+              <CardTitle>Histórico</CardTitle>
+              <CardDescription>
+                {filtered.length} de {data.alerts.length} alertas
+              </CardDescription>
+              <CardAction>
+                <span
+                  className={`chip ${data.source === 'demo' ? 'chip-cyan' : 'chip-lime'}`}
+                >
+                  {data.source === 'demo' ? 'demonstração' : 'ao vivo'}
+                </span>
+              </CardAction>
             </CardHeader>
             <CardContent className="space-y-5">
               {byDay.length === 0 && (
-                <div className="grid min-h-44 place-items-center text-center">
+                <div className="grid min-h-40 place-items-center text-center">
                   <div>
-                    <ShieldCheck className="mx-auto size-7 text-lime-300" />
-                    <p className="mt-3 text-sm font-medium text-slate-200">
+                    <ShieldCheck className="mx-auto size-5 text-lime-300" />
+                    <p className="mt-2 text-sm text-[#c7d0da]">
                       Nenhum alerta com esses filtros
                     </p>
                   </div>
@@ -143,23 +160,21 @@ export default function AlertasPage() {
               )}
               {byDay.map(([day, items]) => (
                 <div key={day}>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-[.18em] text-slate-500">
-                    {day}
-                  </p>
+                  <p className="eyebrow mb-2">{day}</p>
                   <div className="space-y-2">
                     {items.map((a) => {
                       const Icon =
                         a.tone === 'critical' ? TriangleAlert : Activity;
                       return (
                         <div
-                          className={`alert-item alert-${a.tone}`}
+                          className={`alert-row alert-row-${a.tone}`}
                           key={a.id}
                         >
-                          <span className="alert-icon">
-                            <Icon className="size-4" />
-                          </span>
+                          <Icon
+                            className={`mt-0.5 size-4 shrink-0 ${a.tone === 'critical' ? 'text-rose-400' : 'text-amber-300'}`}
+                          />
                           <div className="min-w-0 flex-1">
-                            <div className="flex justify-between gap-3">
+                            <div className="flex items-start justify-between gap-3">
                               <strong>
                                 {a.title} · {a.meterName}
                               </strong>
@@ -180,7 +195,7 @@ export default function AlertasPage() {
               ))}
             </CardContent>
           </Card>
-        </>
+        </div>
       )}
     </AppShell>
   );

@@ -5,7 +5,13 @@ import { CheckCircle2, KeyRound, XCircle } from 'lucide-react';
 
 import { AppShell } from '@/components/shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDashboard } from '@/hooks/use-dashboard';
@@ -81,16 +87,14 @@ export default function ConfiguracoesPage() {
       data={data}
       error={error}
     >
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,.7fr)]">
-        <Card className="panel-card border-0">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,.65fr)]">
+        <Card className="fade-up">
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-white">
-              Conexão
-            </CardTitle>
-            <p className="mt-1 text-xs text-slate-500">
-              Guardada só neste navegador. A chave identifica o cliente e não
-              passa por nenhum servidor além da API.
-            </p>
+            <CardTitle>Conexão</CardTitle>
+            <CardDescription>
+              Guardada só neste navegador. A chave identifica o cliente e vai
+              apenas para a API.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid gap-2">
@@ -132,14 +136,14 @@ export default function ConfiguracoesPage() {
                 onChange={update('apiKey')}
                 placeholder="ek_..."
               />
-              <p className="text-xs text-slate-500">
+              <p className="label">
                 Gerada ao criar o cliente na API. Sem chave, o painel mostra
                 dados demonstrativos.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                className="bg-lime-300 text-[#10170b] hover:bg-lime-200"
+                className="bg-lime-300 text-[#0f1a06] hover:bg-lime-200"
                 onClick={save}
                 disabled={!form.apiUrl.trim()}
               >
@@ -156,7 +160,7 @@ export default function ConfiguracoesPage() {
               </Button>
               <Button
                 variant="ghost"
-                className="text-slate-400"
+                className="text-[#8b98a8]"
                 onClick={clear}
               >
                 Voltar ao modo demonstração
@@ -171,8 +175,8 @@ export default function ConfiguracoesPage() {
               <div
                 className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
                   test.ok
-                    ? 'border-lime-400/20 bg-lime-400/10 text-lime-200'
-                    : 'border-rose-400/20 bg-rose-400/10 text-rose-200'
+                    ? 'border-lime-400/25 bg-lime-400/[.06] text-lime-200'
+                    : 'border-rose-400/25 bg-rose-400/[.06] text-rose-200'
                 }`}
               >
                 {test.ok ? (
@@ -186,25 +190,22 @@ export default function ConfiguracoesPage() {
           </CardContent>
         </Card>
 
-        <Card className="panel-card border-0">
+        <Card className="fade-up" style={{ animationDelay: '80ms' }}>
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-white">
-              Como funciona
-            </CardTitle>
+            <CardTitle>Como funciona</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-slate-400">
+          <CardContent className="space-y-3 text-sm leading-relaxed text-[#8b98a8]">
             <p>
               Os medidores publicam leituras a cada 10 segundos. A nuvem fecha
               janelas de 15 minutos iguais às da distribuidora e calcula a
               demanda de cada uma.
             </p>
             <p>
-              A <strong className="text-slate-200">projeção</strong> aparece a
+              A <span className="text-[#e6ebf0]">projeção</span> aparece a
               partir de 5 minutos de janela e é o aviso que chega a tempo de
               desligar carga. A{' '}
-              <strong className="text-slate-200">ultrapassagem</strong> é
-              registrada quando a janela fecha acima do contrato mais a
-              tolerância.
+              <span className="text-[#e6ebf0]">ultrapassagem</span> é registrada
+              quando a janela fecha acima do contrato mais a tolerância.
             </p>
             <p>
               O painel atualiza a cada 15 segundos na visão de 24 horas e a cada

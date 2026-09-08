@@ -5,8 +5,14 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { AppShell } from '@/components/shell';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -120,6 +126,37 @@ export default function AnalisesPage() {
     };
   }, [rollups]);
 
+  const summary = [
+    {
+      label: 'Energia no mês',
+      value: fmtNumber(totals.kwh, 0),
+      unit: 'kWh',
+      foot: `soma dos medidores · ${totals.windows} janelas`,
+      warn: false,
+    },
+    {
+      label: 'Janelas com ultrapassagem',
+      value: String(totals.exceeded),
+      unit: '',
+      foot: 'uma basta para pagar ultrapassagem no mês',
+      warn: totals.exceeded > 0,
+    },
+    {
+      label: 'Janelas com FP baixo',
+      value: String(totals.pfBelow),
+      unit: '',
+      foot: `abaixo de ${fmtNumber(data?.tenant.pf_reference ?? 0.92, 2)} · excedente reativo`,
+      warn: totals.pfBelow > 0,
+    },
+    {
+      label: 'Horário de ponta',
+      value: data ? `${data.tenant.ponta_start}–${data.tenant.ponta_end}` : '—',
+      unit: '',
+      foot: `dias úteis · tolerância de ${Math.round((data?.tenant.demand_tolerance ?? 0.05) * 100)}%`,
+      warn: false,
+    },
+  ];
+
   return (
     <AppShell
       title="Análises"
@@ -132,7 +169,10 @@ export default function AnalisesPage() {
           value={activeMonth}
           onValueChange={(v) => setMonth(v ?? months[0])}
         >
-          <SelectTrigger className="h-9 w-[180px] border-white/10 bg-white/[.04] text-slate-200">
+          <SelectTrigger
+            size="sm"
+            className="w-[170px] border-white/10 bg-white/[.03] text-xs"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -146,114 +186,74 @@ export default function AnalisesPage() {
       }
     >
       {!data ? (
-        <Skeleton className="h-64 rounded-xl bg-white/5" />
+        <Skeleton className="h-64 rounded-xl bg-white/[.04]" />
       ) : (
-        <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Card className="metric-card border-0">
-              <CardHeader>
-                <p className="metric-label">Energia no mês</p>
-                <div className="mt-3 flex items-end gap-1.5">
-                  <strong className="metric-value">
-                    {fmtNumber(totals.kwh, 0)}
-                  </strong>
-                  <span className="mb-1 text-sm font-medium text-slate-500">
-                    kWh
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="text-xs text-slate-400">
-                soma dos medidores · {totals.windows} janelas
-              </CardContent>
-            </Card>
-            <Card className="metric-card border-0">
-              <CardHeader>
-                <p className="metric-label">Janelas com ultrapassagem</p>
-                <div className="mt-3 flex items-end gap-1.5">
-                  <strong
-                    className={`metric-value ${totals.exceeded ? 'text-amber-300' : ''}`}
-                  >
-                    {totals.exceeded}
-                  </strong>
-                </div>
-              </CardHeader>
-              <CardContent className="text-xs text-slate-400">
-                uma basta para pagar ultrapassagem no mês
-              </CardContent>
-            </Card>
-            <Card className="metric-card border-0">
-              <CardHeader>
-                <p className="metric-label">Janelas com FP baixo</p>
-                <div className="mt-3 flex items-end gap-1.5">
-                  <strong
-                    className={`metric-value ${totals.pfBelow ? 'text-amber-300' : ''}`}
-                  >
-                    {totals.pfBelow}
-                  </strong>
-                </div>
-              </CardHeader>
-              <CardContent className="text-xs text-slate-400">
-                abaixo de {fmtNumber(data.tenant.pf_reference, 2)} · excedente
-                reativo
-              </CardContent>
-            </Card>
-            <Card className="metric-card border-0">
-              <CardHeader>
-                <p className="metric-label">Horário de ponta</p>
-                <div className="mt-3 flex items-end gap-1.5">
-                  <strong className="metric-value">
-                    {data.tenant.ponta_start}–{data.tenant.ponta_end}
-                  </strong>
-                </div>
-              </CardHeader>
-              <CardContent className="text-xs text-slate-400">
-                dias úteis · tolerância de{' '}
-                {Math.round(data.tenant.demand_tolerance * 100)}%
-              </CardContent>
-            </Card>
+        <div className="space-y-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {summary.map((s, i) => (
+              <Card
+                key={s.label}
+                className="fade-up"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <CardContent>
+                  <p className="label">{s.label}</p>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span
+                      className={`kpi-value ${s.warn ? 'text-amber-300' : ''}`}
+                    >
+                      {s.value}
+                    </span>
+                    {s.unit && (
+                      <span className="text-sm text-[#6b7887]">{s.unit}</span>
+                    )}
+                  </div>
+                  <p className="label mt-2.5">{s.foot}</p>
+                </CardContent>
+              </Card>
+            ))}
           </section>
 
-          <section className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-            {data.meters.map((m) => {
+          <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {data.meters.map((m, i) => {
               const r = rollups[m.id];
-              const contractedFora = m.contractedKw;
               const maxFora = r?.max_demand_kw.fora_ponta ?? null;
               const maxPonta = r?.max_demand_kw.ponta ?? null;
               const pct =
-                maxFora != null && contractedFora
-                  ? (maxFora / contractedFora) * 100
+                maxFora != null && m.contractedKw
+                  ? (maxFora / m.contractedKw) * 100
                   : null;
               return (
-                <Card key={m.id} className="panel-card border-0">
-                  <CardHeader className="flex-row items-start justify-between">
-                    <div>
-                      <CardTitle className="text-base font-semibold text-white">
-                        {m.name}
-                      </CardTitle>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {monthLabel(activeMonth)} · contrato{' '}
-                        {fmtKw(m.contractedKw, 0)}
-                      </p>
-                    </div>
-                    {r && r.exceeded_windows > 0 ? (
-                      <Badge className="border border-amber-400/20 bg-amber-400/10 text-amber-300">
-                        {r.exceeded_windows} ultrapass.
-                      </Badge>
-                    ) : (
-                      <Badge className="border border-lime-400/20 bg-lime-400/10 text-lime-300">
-                        no contrato
-                      </Badge>
-                    )}
+                <Card
+                  key={m.id}
+                  className="fade-up"
+                  style={{ animationDelay: `${240 + i * 60}ms` }}
+                >
+                  <CardHeader>
+                    <CardTitle>{m.name}</CardTitle>
+                    <CardDescription>
+                      {monthLabel(activeMonth)} · contrato{' '}
+                      {fmtKw(m.contractedKw, 0)}
+                    </CardDescription>
+                    <CardAction>
+                      {r && r.exceeded_windows > 0 ? (
+                        <span className="chip chip-amber">
+                          {r.exceeded_windows} ultrapass.
+                        </span>
+                      ) : (
+                        <span className="chip chip-lime">no contrato</span>
+                      )}
+                    </CardAction>
                   </CardHeader>
                   <CardContent>
                     {busy && !r ? (
-                      <Skeleton className="h-28 bg-white/5" />
+                      <Skeleton className="h-28 bg-white/[.04]" />
                     ) : !r ? (
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-[#6b7887]">
                         Sem janelas fechadas neste mês.
                       </p>
                     ) : (
-                      <div className="space-y-3">
+                      <div>
                         <div className="detail-row">
                           <span>Demanda máxima fora ponta</span>
                           <strong
@@ -262,15 +262,15 @@ export default function AnalisesPage() {
                             }
                           >
                             {fmtKw(maxFora)}
-                            {pct != null ? (
-                              <small className="ml-1 text-slate-500">
+                            {pct != null && (
+                              <span className="ml-1.5 text-xs font-normal text-[#6b7887]">
                                 {Math.round(pct)}%
-                              </small>
-                            ) : null}
+                              </span>
+                            )}
                           </strong>
                         </div>
                         {r.max_demand_at.fora_ponta && (
-                          <p className="-mt-2 text-xs text-slate-500">
+                          <p className="-mt-1 pb-2 text-[11px] text-[#6b7887]">
                             em {fmtDateTime(r.max_demand_at.fora_ponta, tz)}
                           </p>
                         )}
@@ -303,7 +303,7 @@ export default function AnalisesPage() {
               );
             })}
           </section>
-        </>
+        </div>
       )}
     </AppShell>
   );

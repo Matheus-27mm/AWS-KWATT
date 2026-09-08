@@ -1,6 +1,7 @@
 'use client';
 
-// Casca do painel: barra lateral com navegação nomeada, cabeçalho com título, busca e sino.
+// Casca do painel: barra lateral recolhível (preferência salva no navegador), cabeçalho com
+// título, busca e alertas. Uma superfície, bordas de 1 px, um acento.
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -8,6 +9,8 @@ import {
   Activity,
   Bell,
   Bolt,
+  ChevronsLeft,
+  ChevronsRight,
   Gauge,
   LayoutDashboard,
   Menu,
@@ -24,9 +27,15 @@ import {
   type ReactNode,
 } from 'react';
 
-import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { relativeTime } from '@/lib/format';
 import type { DashboardData } from '@/lib/model';
+import { usePersistedFlag } from '@/lib/prefs';
 
 const NAV = [
   { href: '/painel', icon: LayoutDashboard, label: 'Visão geral' },
@@ -42,89 +51,142 @@ export function useSearch(): string {
   return useContext(SearchContext);
 }
 
-function NavList({
-  pathname,
+function isActive(href: string, pathname: string): boolean {
+  if (href === '/painel')
+    return pathname === '/painel' || pathname === '/painel/';
+  return pathname.startsWith(href);
+}
+
+function NavItem({
+  href,
+  icon: Icon,
+  label,
+  active,
+  collapsed,
   onNavigate,
 }: {
-  pathname: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  active: boolean;
+  collapsed: boolean;
   onNavigate?: () => void;
 }) {
+  const link = (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      aria-label={collapsed ? label : undefined}
+      className={`nav-item ${active ? 'nav-item-active' : ''} ${collapsed ? 'justify-center px-0' : ''}`}
+    >
+      <Icon className="size-4" />
+      {!collapsed && <span>{label}</span>}
+    </Link>
+  );
+  if (!collapsed) return link;
   return (
-    <nav aria-label="Navegação principal" className="flex flex-col gap-1">
-      {NAV.map(({ href, icon: Icon, label }) => {
-        const active =
-          href === '/painel'
-            ? pathname === '/painel' || pathname === '/painel/'
-            : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            onClick={onNavigate}
-            aria-current={active ? 'page' : undefined}
-            className={`nav-item ${active ? 'nav-item-active' : ''}`}
-          >
-            <Icon className="size-4" />
-            <span>{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <Tooltip>
+      <TooltipTrigger render={link} />
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
 function Sidebar({
   pathname,
   data,
+  collapsed,
+  onToggle,
   onNavigate,
 }: {
   pathname: string;
   data: DashboardData | null;
+  collapsed: boolean;
+  onToggle?: () => void;
   onNavigate?: () => void;
 }) {
-  const settingsActive = pathname.startsWith('/painel/configuracoes');
+  const initials = (data?.tenant.name ?? 'KW')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <div className="flex h-full flex-col">
       <Link
         href="/"
         onClick={onNavigate}
-        className="flex h-[72px] items-center gap-3 border-b border-white/6 px-5"
+        className={`flex h-16 items-center gap-3 border-b border-white/[.07] ${collapsed ? 'justify-center px-0' : 'px-4'}`}
+        aria-label="KWATT, página inicial"
       >
         <span className="brand-mark" aria-hidden>
           <Bolt className="size-4" fill="currentColor" />
         </span>
-        <span className="text-[15px] font-semibold tracking-tight text-white">
-          KWATT
-        </span>
+        {!collapsed && (
+          <span className="text-[15px] font-semibold tracking-tight text-white">
+            KWATT
+          </span>
+        )}
       </Link>
-      <div className="flex-1 px-3 py-4">
-        <NavList pathname={pathname} onNavigate={onNavigate} />
-      </div>
-      <div className="border-t border-white/6 px-3 py-4">
-        <Link
+      <nav
+        aria-label="Navegação principal"
+        className="flex flex-1 flex-col gap-1 px-3 py-3"
+      >
+        {NAV.map((item) => (
+          <NavItem
+            key={item.href}
+            {...item}
+            active={isActive(item.href, pathname)}
+            collapsed={collapsed}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </nav>
+      <div className="flex flex-col gap-1 border-t border-white/[.07] px-3 py-3">
+        <NavItem
           href="/painel/configuracoes"
-          onClick={onNavigate}
-          aria-current={settingsActive ? 'page' : undefined}
-          className={`nav-item ${settingsActive ? 'nav-item-active' : ''}`}
+          icon={Settings2}
+          label="Configurações"
+          active={pathname.startsWith('/painel/configuracoes')}
+          collapsed={collapsed}
+          onNavigate={onNavigate}
+        />
+        {onToggle && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className={`nav-item ${collapsed ? 'justify-center px-0' : ''}`}
+            aria-label={
+              collapsed ? 'Expandir barra lateral' : 'Recolher barra lateral'
+            }
+            title={collapsed ? 'Expandir' : 'Recolher'}
+          >
+            {collapsed ? (
+              <ChevronsRight className="size-4" />
+            ) : (
+              <ChevronsLeft className="size-4" />
+            )}
+            {!collapsed && <span>Recolher</span>}
+          </button>
+        )}
+        <div
+          className={`mt-2 flex items-center gap-3 ${collapsed ? 'justify-center' : 'px-2'}`}
+          title={data?.tenant.name}
         >
-          <Settings2 className="size-4" />
-          <span>Configurações</span>
-        </Link>
-        <div className="mt-3 flex items-center gap-3 px-2 text-xs text-slate-500">
-          <span className="grid size-8 place-items-center rounded-full bg-slate-800 text-[11px] font-bold text-slate-300 ring-1 ring-white/10">
-            {(data?.tenant.name ?? 'KW')
-              .split(' ')
-              .map((w) => w[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase()}
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/[.06] text-[11px] font-semibold text-[#c7d0da]">
+            {initials}
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-slate-300">
-              {data?.tenant.name ?? 'Sem cliente'}
+          {!collapsed && (
+            <span className="min-w-0 text-xs">
+              <span className="block truncate text-[#e6ebf0]">
+                {data?.tenant.name ?? 'Sem cliente'}
+              </span>
+              <span className="block truncate text-[#6b7887]">
+                {data?.siteName ?? ''}
+              </span>
             </span>
-            <span className="block truncate">{data?.siteName ?? ''}</span>
-          </span>
+          )}
         </div>
       </div>
     </div>
@@ -149,6 +211,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? '/';
+  const [collapsed, setCollapsed] = usePersistedFlag('kwatt.sidebar.collapsed');
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [now, setNow] = useState(() => new Date());
@@ -171,135 +234,148 @@ export function AppShell({
         ? 'Sem conexão'
         : data
           ? `Atualizado ${relativeTime(data.updatedAt, now)}`
-          : 'Sem dados';
+          : '';
+  const alertsTitle = recentAlerts
+    ? `${recentAlerts} alertas na última hora`
+    : 'Sem alertas na última hora';
 
   return (
     <SearchContext.Provider value={search}>
-      <div className="min-h-screen bg-background text-foreground">
-        <aside className="sidebar fixed inset-y-0 left-0 z-30 hidden w-[232px] border-r border-white/6 lg:block">
-          <Sidebar pathname={pathname} data={data} />
-        </aside>
-
-        {menuOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden">
-            <button
-              type="button"
-              aria-label="Fechar menu"
-              className="absolute inset-0 bg-black/60"
-              onClick={() => setMenuOpen(false)}
+      <TooltipProvider delay={200}>
+        <div className="min-h-screen bg-background text-foreground">
+          <aside
+            className={`sidebar fixed inset-y-0 left-0 z-30 hidden border-r border-white/[.07] lg:block ${collapsed ? 'w-16' : 'w-60'}`}
+          >
+            <Sidebar
+              pathname={pathname}
+              data={data}
+              collapsed={collapsed}
+              onToggle={() => setCollapsed(!collapsed)}
             />
-            <div className="sidebar absolute inset-y-0 left-0 w-[232px] border-r border-white/6">
+          </aside>
+
+          {menuOpen && (
+            <div className="fixed inset-0 z-40 lg:hidden">
               <button
                 type="button"
-                aria-label="Fechar"
-                className="absolute top-5 right-3 grid size-8 place-items-center rounded-md text-slate-400 hover:bg-white/5"
+                aria-label="Fechar menu"
+                className="absolute inset-0 bg-black/60"
                 onClick={() => setMenuOpen(false)}
-              >
-                <X className="size-4" />
-              </button>
-              <Sidebar
-                pathname={pathname}
-                data={data}
-                onNavigate={() => setMenuOpen(false)}
               />
-            </div>
-          </div>
-        )}
-
-        <main className="lg:pl-[232px]">
-          <header className="sticky top-0 z-20 border-b border-white/6 bg-[#081018]/88 backdrop-blur-xl">
-            <div className="mx-auto flex min-h-[72px] max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="sidebar absolute inset-y-0 left-0 w-60 border-r border-white/[.07]">
                 <button
-                  className="nav-icon lg:hidden"
-                  aria-label="Abrir menu"
                   type="button"
-                  onClick={() => setMenuOpen(true)}
+                  aria-label="Fechar"
+                  className="icon-button absolute top-3 right-3"
+                  onClick={() => setMenuOpen(false)}
                 >
-                  <Menu className="size-5" />
+                  <X className="size-4" />
                 </button>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h1 className="truncate text-lg font-semibold text-white sm:text-xl">
-                      {title}
-                    </h1>
-                    {isDemo && (
-                      <Badge className="border border-cyan-400/20 bg-cyan-400/10 text-[10px] text-cyan-300">
-                        DEMO
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">
-                    {subtitle ?? status}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-3">
-                {actions}
-                <label className="search-box hidden md:flex">
-                  <Search className="size-4 text-slate-500" />
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar medidor ou alerta"
-                    aria-label="Buscar"
-                  />
-                </label>
-                <Link
-                  href="/painel/alertas"
-                  aria-label={
-                    recentAlerts
-                      ? `${recentAlerts} alertas na última hora`
-                      : 'Alertas'
-                  }
-                  className="nav-icon relative"
-                  title={
-                    recentAlerts
-                      ? `${recentAlerts} alertas na última hora`
-                      : 'Sem alertas na última hora'
-                  }
-                >
-                  <Bell className="size-[18px]" />
-                  {recentAlerts > 0 && <span className="bell-dot" />}
-                </Link>
-                <span
-                  className={`live-dot ml-1 hidden md:block ${error ? 'live-dot-off' : ''}`}
-                  title={status}
+                <Sidebar
+                  pathname={pathname}
+                  data={data}
+                  collapsed={false}
+                  onNavigate={() => setMenuOpen(false)}
                 />
               </div>
             </div>
-          </header>
+          )}
 
-          <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
-            {error && (
-              <div className="mb-4 rounded-lg border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                <strong className="font-semibold">
-                  Não consegui falar com a API.
-                </strong>{' '}
-                {error} {data ? 'Mostrando os últimos dados recebidos.' : ''}
-                <Link
-                  href="/painel/configuracoes"
-                  className="ml-2 underline underline-offset-4"
-                >
-                  Revisar configurações
-                </Link>
+          <div
+            className={`transition-[padding] duration-200 ${collapsed ? 'lg:pl-16' : 'lg:pl-60'}`}
+          >
+            <header className="sticky top-0 z-20 border-b border-white/[.07] bg-[#0b1117]/85 backdrop-blur-md">
+              <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+                <div className="flex min-w-0 items-center gap-3">
+                  <button
+                    className="icon-button lg:hidden"
+                    aria-label="Abrir menu"
+                    type="button"
+                    onClick={() => setMenuOpen(true)}
+                  >
+                    <Menu className="size-5" />
+                  </button>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5">
+                      <h1 className="truncate text-[17px] font-semibold text-white">
+                        {title}
+                      </h1>
+                      {isDemo && <span className="chip chip-cyan">Demo</span>}
+                      {error && (
+                        <span className="chip chip-crit">Sem conexão</span>
+                      )}
+                    </div>
+                    {(subtitle ?? status) && (
+                      <p className="mt-0.5 truncate text-xs text-[#6b7887]">
+                        {subtitle ?? status}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {actions}
+                  <label className="search-box hidden md:flex">
+                    <Search className="size-4 text-[#6b7887]" />
+                    <input
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar medidor ou alerta"
+                      aria-label="Buscar"
+                    />
+                  </label>
+                  <Link
+                    href="/painel/alertas"
+                    className="icon-button relative"
+                    aria-label={recentAlerts ? alertsTitle : 'Alertas'}
+                    title={alertsTitle}
+                  >
+                    <Bell className="size-[18px]" />
+                    {recentAlerts > 0 && <span className="bell-dot" />}
+                  </Link>
+                  <span
+                    className="ml-1 hidden items-center gap-2 text-xs text-[#8b98a8] md:flex"
+                    title={status}
+                  >
+                    <span
+                      className={`live-dot ${error ? 'live-dot-off' : ''}`}
+                    />
+                    {error ? 'offline' : 'ao vivo'}
+                  </span>
+                </div>
               </div>
-            )}
-            {children}
-            <footer className="mt-6 flex flex-col justify-between gap-2 border-t border-white/6 pt-5 text-xs text-slate-600 sm:flex-row">
-              <span>KWATT · inteligência energética industrial</span>
-              <span>
-                {isDemo
-                  ? 'Dados demonstrativos. Configure a chave da API para ver a sua fábrica.'
-                  : data
-                    ? `${data.tenant.name} · fuso ${data.tenant.tz}`
-                    : ''}
-              </span>
-            </footer>
+            </header>
+
+            <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
+              {error && (
+                <div className="mb-4 rounded-lg border border-rose-400/25 bg-rose-400/[.06] px-4 py-3 text-sm text-rose-200">
+                  <span className="font-medium">
+                    Não consegui falar com a API.
+                  </span>{' '}
+                  {error} {data ? 'Mostrando os últimos dados recebidos.' : ''}
+                  <Link
+                    href="/painel/configuracoes"
+                    className="ml-2 underline underline-offset-4"
+                  >
+                    Revisar configurações
+                  </Link>
+                </div>
+              )}
+              {children}
+              <footer className="mt-8 flex flex-col justify-between gap-2 border-t border-white/[.07] pt-4 text-[11px] text-[#6b7887] sm:flex-row">
+                <span>KWATT · inteligência energética industrial</span>
+                <span>
+                  {isDemo
+                    ? 'Dados demonstrativos. Configure a chave da API para ver a sua fábrica.'
+                    : data
+                      ? `${data.tenant.name} · fuso ${data.tenant.tz}`
+                      : ''}
+                </span>
+              </footer>
+            </main>
           </div>
-        </main>
-      </div>
+        </div>
+      </TooltipProvider>
     </SearchContext.Provider>
   );
 }

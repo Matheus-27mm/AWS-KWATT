@@ -4,25 +4,26 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
-  ArrowDownRight,
-  ArrowUpRight,
   Bolt,
   Check,
   CircleGauge,
-  Clock3,
-  Radio,
   ShieldCheck,
   TriangleAlert,
   Zap,
 } from 'lucide-react';
 
+import { Delta, KpiCard } from '@/components/kpi-card';
 import { LoadChart } from '@/components/load-chart';
 import { ShareDonut } from '@/components/share-donut';
 import { AppShell, useSearch } from '@/components/shell';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -43,86 +44,28 @@ import {
   relativeTime,
   windowLabel,
 } from '@/lib/format';
-import type { DashboardData, Range } from '@/lib/model';
-
-type Tone = 'lime' | 'cyan' | 'amber' | 'violet';
-
-function Delta({
-  pct,
-  suffix,
-  invert = false,
-}: {
-  pct: number | null;
-  suffix: string;
-  invert?: boolean;
-}) {
-  if (pct == null)
-    return <span className="text-slate-500">sem comparativo</span>;
-  const up = pct >= 0;
-  const good = invert ? !up : up;
-  const Icon = up ? ArrowUpRight : ArrowDownRight;
-  return (
-    <span
-      className={`flex items-center gap-1 ${good ? 'text-lime-300' : 'text-amber-300'}`}
-    >
-      <Icon className="size-3.5" />
-      {up ? '+' : ''}
-      {fmtNumber(pct, 1)}% <span className="text-slate-500">{suffix}</span>
-    </span>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  unit,
-  icon: Icon,
-  tone,
-  foot,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  tone: Tone;
-  foot: React.ReactNode;
-}) {
-  return (
-    <Card className="kpi-card border-0">
-      <CardContent className="flex items-start justify-between gap-3 p-5">
-        <div className="min-w-0">
-          <p className="kpi-label">{label}</p>
-          <div className="mt-2 flex items-end gap-1.5">
-            <strong className="kpi-value">{value}</strong>
-            {unit && (
-              <span className="mb-1 text-sm font-medium text-slate-500">
-                {unit}
-              </span>
-            )}
-          </div>
-          <div className="mt-2 text-xs">{foot}</div>
-        </div>
-        <span className={`kpi-tile kpi-tile-${tone}`}>
-          <Icon className="size-[18px]" />
-        </span>
-      </CardContent>
-    </Card>
-  );
-}
+import type { DashboardData, MeterView, Range } from '@/lib/model';
 
 function headline(data: DashboardData): string {
-  if (data.consolidated.riskyMeters.length)
-    return 'A fábrica está próxima do limite.';
+  if (data.consolidated.riskyMeters.length) return 'Fábrica próxima do limite';
   if (data.meters.some((m) => m.status === 'mudo'))
-    return 'Há medidor sem leitura recente.';
+    return 'Medidor sem leitura recente';
   if (data.meters.every((m) => m.status === 'sem_dados'))
-    return 'Aguardando as primeiras leituras.';
-  return 'Operação dentro do contrato.';
+    return 'Aguardando as primeiras leituras';
+  return 'Operação dentro do contrato';
+}
+
+function dotClass(status: MeterView['status']): string {
+  if (status === 'critico') return 'status-dot status-dot-crit';
+  if (status === 'atencao') return 'status-dot status-dot-warn';
+  if (status === 'mudo' || status === 'sem_dados')
+    return 'status-dot status-dot-off';
+  return 'status-dot';
 }
 
 export default function Home() {
   const [range, setRange] = useState<Range>('24h');
-  const [ack, setAck] = useState<string[]>([]);
+  const [hidden, setHidden] = useState<string[]>([]);
   const { data, loading, error } = useDashboard(range);
   const search = useSearch().trim().toLowerCase();
 
@@ -138,14 +81,14 @@ export default function Home() {
     c?.projectedKw != null && c.contractedKw
       ? (c.projectedKw / c.contractedKw) * 100
       : null;
-  const usagePct =
-    c?.currentKw != null && c.contractedKw
-      ? (c.currentKw / c.contractedKw) * 100
-      : null;
   const excess =
     atRisk && c?.projectedKw != null && c.contractedKw != null
       ? c.projectedKw - c.contractedKw
       : 0;
+  const pfLow =
+    c?.worstPf != null &&
+    data != null &&
+    Math.abs(c.worstPf) < data.tenant.pf_reference;
 
   const meters = useMemo(
     () =>
@@ -157,10 +100,10 @@ export default function Home() {
       ),
     [data, search],
   );
-  const visibleAlerts = useMemo(
+  const alerts = useMemo(
     () =>
       (data?.alerts ?? [])
-        .filter((a) => !ack.includes(a.id))
+        .filter((a) => !hidden.includes(a.id))
         .filter(
           (a) =>
             !search ||
@@ -168,10 +111,10 @@ export default function Home() {
             a.title.toLowerCase().includes(search),
         )
         .slice(0, 5),
-    [data, ack, search],
+    [data, hidden, search],
   );
 
-  // WebMCP: expõe ações do painel a assistentes que rodem no navegador.
+  // WebMCP: expõe uma ação do painel a assistentes que rodem no navegador.
   useEffect(() => {
     const context = document.modelContext;
     if (!context?.registerTool || !data) return;
@@ -208,7 +151,7 @@ export default function Home() {
       title="Visão geral"
       subtitle={
         data
-          ? `${headline(data)} ${fmtDateLong(now, tz)}, ${fmtTime(now, tz)}.`
+          ? `${headline(data)} · ${fmtDateLong(now, tz)}, ${fmtTime(now, tz)}`
           : undefined
       }
       data={data}
@@ -218,21 +161,22 @@ export default function Home() {
       {!data || !c ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-xl bg-white/5" />
+            <Skeleton key={i} className="h-[118px] rounded-xl bg-white/[.04]" />
           ))}
         </div>
       ) : (
-        <>
+        <div className="space-y-4">
           <section
             aria-label="Indicadores principais"
             className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
           >
             <KpiCard
               label="Demanda atual"
-              value={c.currentKw != null ? fmtNumber(c.currentKw) : '—'}
+              value={c.currentKw}
               unit="kW"
               icon={Zap}
               tone="lime"
+              delay={0}
               foot={
                 <Delta
                   pct={c.currentDeltaPct}
@@ -243,33 +187,39 @@ export default function Home() {
             />
             <KpiCard
               label="Projeção da janela"
-              value={c.projectedKw != null ? fmtNumber(c.projectedKw) : '—'}
+              value={c.projectedKw}
               unit="kW"
               icon={CircleGauge}
               tone={atRisk ? 'amber' : 'cyan'}
+              delay={60}
               foot={
                 projectionPct != null ? (
-                  <span className={atRisk ? 'text-amber-300' : 'text-lime-300'}>
-                    {Math.round(projectionPct)}% do contrato
-                    <span className="text-slate-500">
-                      {c.secondsInWindow != null
-                        ? ` · fecha em ${fmtDuration(Math.max(0, 900 - c.secondsInWindow))}`
-                        : ''}
+                  <span className="flex items-center gap-1">
+                    <span
+                      className={`num ${atRisk ? 'text-amber-300' : 'text-lime-300'}`}
+                    >
+                      {Math.round(projectionPct)}% do contrato
                     </span>
+                    {c.secondsInWindow != null && (
+                      <span className="text-[#6b7887]">
+                        · fecha em{' '}
+                        {fmtDuration(Math.max(0, 900 - c.secondsInWindow))}
+                      </span>
+                    )}
                   </span>
                 ) : (
-                  <span className="text-slate-500">
-                    aguardando 5 min de janela
-                  </span>
+                  <span className="label">aguardando 5 min de janela</span>
                 )
               }
             />
             <KpiCard
               label="Consumo hoje"
-              value={fmtNumber(c.kwhToday, 0)}
+              value={c.kwhToday}
+              digits={0}
               unit="kWh"
               icon={Bolt}
               tone="violet"
+              delay={120}
               foot={
                 <Delta
                   pct={c.kwhTodayDeltaPct}
@@ -280,23 +230,13 @@ export default function Home() {
             />
             <KpiCard
               label="Fator de potência"
-              value={fmtPf(c.worstPf)}
+              value={c.worstPf != null ? Math.abs(c.worstPf) : null}
+              digits={2}
               icon={Activity}
-              tone={
-                c.worstPf != null &&
-                Math.abs(c.worstPf) < data.tenant.pf_reference
-                  ? 'amber'
-                  : 'lime'
-              }
+              tone={pfLow ? 'amber' : 'lime'}
+              delay={180}
               foot={
-                <span
-                  className={
-                    c.worstPf != null &&
-                    Math.abs(c.worstPf) < data.tenant.pf_reference
-                      ? 'text-amber-300'
-                      : 'text-slate-500'
-                  }
-                >
+                <span className={pfLow ? 'text-amber-300' : 'label'}>
                   referência {fmtNumber(data.tenant.pf_reference, 2)}
                   {c.worstPfMeter ? ` · ${c.worstPfMeter}` : ''}
                 </span>
@@ -304,56 +244,57 @@ export default function Home() {
             />
           </section>
 
-          <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,1fr)]">
-            <Card className="panel-card border-0">
-              <CardHeader className="flex-row items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base font-semibold text-white">
-                    Curva de carga
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Demanda consolidada por janela de 15 min
-                  </p>
-                </div>
-                <Select
-                  value={range}
-                  onValueChange={(v) => setRange((v as Range) ?? '24h')}
-                >
-                  <SelectTrigger className="h-8 w-[150px] border-white/10 bg-white/[.04] text-xs text-slate-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="24h">Últimas 24 horas</SelectItem>
-                    <SelectItem value="7d">Últimos 7 dias</SelectItem>
-                  </SelectContent>
-                </Select>
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)]">
+            <Card className="fade-up" style={{ animationDelay: '240ms' }}>
+              <CardHeader>
+                <CardTitle>Curva de carga</CardTitle>
+                <CardDescription>
+                  Demanda consolidada por janela de 15 min
+                </CardDescription>
+                <CardAction>
+                  <Select
+                    value={range}
+                    onValueChange={(v) => setRange((v as Range) ?? '24h')}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="w-[150px] border-white/10 bg-white/[.03] text-xs"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="24h">Últimas 24 horas</SelectItem>
+                      <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </CardAction>
               </CardHeader>
-              <CardContent className="h-[280px] pt-2">
+              <CardContent>
                 <LoadChart
                   data={data.curve.map((p) => ({ start: p.start, kw: p.kw }))}
                   contracted={c.contractedKw}
                   tz={tz}
                   range={range}
-                  height={270}
+                  height={260}
                 />
               </CardContent>
-              <div className="grid grid-cols-3 border-t border-white/6 px-5 py-3">
+              <div className="grid grid-cols-3 gap-4 border-t border-white/[.07] px-4 pt-4">
                 <div>
-                  <p className="chart-stat-label">Mínima</p>
-                  <p className="chart-stat">
+                  <p className="stat-label">Mínima</p>
+                  <p className="stat-value">
                     {data.curveStats ? fmtKw(data.curveStats.min) : '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="chart-stat-label">Média</p>
-                  <p className="chart-stat">
+                  <p className="stat-label">Média</p>
+                  <p className="stat-value">
                     {data.curveStats ? fmtKw(data.curveStats.avg) : '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="chart-stat-label">Pico</p>
+                  <p className="stat-label">Pico</p>
                   <p
-                    className={`chart-stat ${data.curveStats && c.contractedKw != null && data.curveStats.peak > c.contractedKw ? 'text-amber-300' : ''}`}
+                    className={`stat-value ${data.curveStats && c.contractedKw != null && data.curveStats.peak > c.contractedKw ? 'text-amber-300' : ''}`}
                   >
                     {data.curveStats ? fmtKw(data.curveStats.peak) : '—'}
                   </p>
@@ -361,69 +302,63 @@ export default function Home() {
               </div>
             </Card>
 
-            <Card className="panel-card border-0">
-              <CardHeader className="flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-semibold text-white">
-                    Distribuição da carga
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Participação de cada medidor na demanda agora
-                  </p>
-                </div>
-                <Link
-                  href="/painel/medidores"
-                  className="text-xs text-slate-400 hover:text-white"
-                >
-                  Ver todos
-                </Link>
+            <Card className="fade-up" style={{ animationDelay: '300ms' }}>
+              <CardHeader>
+                <CardTitle>Distribuição da carga</CardTitle>
+                <CardDescription>
+                  Participação de cada medidor agora
+                </CardDescription>
+                <CardAction>
+                  <Link
+                    href="/painel/medidores"
+                    className="text-xs text-[#8b98a8] hover:text-white"
+                  >
+                    Ver todos
+                  </Link>
+                </CardAction>
               </CardHeader>
-              <CardContent className="pt-2">
+              <CardContent className="flex flex-1 items-center">
                 <ShareDonut shares={c.shares} totalKw={c.currentKw} />
               </CardContent>
             </Card>
           </section>
 
-          <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,1fr)]">
-            <Card className="panel-card border-0">
-              <CardHeader className="flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-semibold text-white">
-                    Medidores
-                  </CardTitle>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {data.meters.length} cadastrados
-                    {data.meters.some((m) => m.lastReadingAt)
-                      ? ` · última leitura ${relativeTime(
-                          data.meters
-                            .map((m) => m.lastReadingAt)
-                            .filter((x): x is string => !!x)
-                            .sort()
-                            .at(-1)!,
-                          now,
-                        )}`
-                      : ''}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-400 hover:bg-white/5 hover:text-white"
-                  render={<Link href="/painel/medidores" />}
-                >
-                  Ver todos
-                </Button>
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)]">
+            <Card className="fade-up" style={{ animationDelay: '360ms' }}>
+              <CardHeader>
+                <CardTitle>Medidores</CardTitle>
+                <CardDescription>
+                  {data.meters.length} cadastrados
+                  {data.meters.some((m) => m.lastReadingAt)
+                    ? ` · última leitura ${relativeTime(
+                        data.meters
+                          .map((m) => m.lastReadingAt)
+                          .filter((x): x is string => !!x)
+                          .sort()
+                          .at(-1)!,
+                        now,
+                      )}`
+                    : ''}
+                </CardDescription>
+                <CardAction>
+                  <Link
+                    href="/painel/medidores"
+                    className="text-xs text-[#8b98a8] hover:text-white"
+                  >
+                    Ver todos
+                  </Link>
+                </CardAction>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="meter-table">
-                  <div className="meter-head">
+              <CardContent>
+                <div className="row-list -mx-4">
+                  <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(90px,1fr)_88px_56px] items-center gap-4 px-4 pb-2 text-[11px] text-[#6b7887]">
                     <span>Equipamento</span>
                     <span>Carga</span>
-                    <span>Potência</span>
-                    <span>FP</span>
+                    <span className="text-right">Potência</span>
+                    <span className="text-right">FP</span>
                   </div>
                   {meters.length === 0 && (
-                    <p className="px-5 py-6 text-sm text-slate-500">
+                    <p className="px-4 py-6 text-sm text-[#6b7887]">
                       Nenhum medidor corresponde à busca.
                     </p>
                   )}
@@ -431,32 +366,38 @@ export default function Home() {
                     <Link
                       key={m.id}
                       href="/painel/medidores"
-                      className="meter-row"
+                      className="grid grid-cols-[minmax(0,1.4fr)_minmax(90px,1fr)_88px_56px] items-center gap-4 px-4 py-3 transition-colors hover:bg-white/[.03]"
                     >
-                      <span className="flex items-center gap-3 text-left">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className={dotClass(m.status)} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm text-[#e6ebf0]">
+                            {m.name}
+                          </span>
+                          <span className="block truncate text-xs text-[#6b7887]">
+                            {m.statusText}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-2">
                         <span
-                          className={`status-ring ${m.status === 'atencao' || m.status === 'critico' ? 'status-warning' : ''} ${m.status === 'mudo' || m.status === 'sem_dados' ? 'status-off' : ''}`}
+                          className={`load-bar ${m.status === 'atencao' || m.status === 'critico' ? 'load-bar-warn' : ''}`}
                         >
-                          <Radio className="size-3.5" />
+                          <i
+                            style={{
+                              width: `${Math.min(m.loadPct ?? 0, 100)}%`,
+                            }}
+                          />
                         </span>
-                        <span>
-                          <strong>{m.name}</strong>
-                          <small>{m.statusText}</small>
-                        </span>
-                      </span>
-                      <span className="load-cell">
-                        <i
-                          style={{ width: `${Math.min(m.loadPct ?? 0, 100)}%` }}
-                        />
-                        <small>
+                        <span className="num w-9 text-right text-xs text-[#8b98a8]">
                           {m.loadPct != null ? `${m.loadPct}%` : '—'}
-                        </small>
+                        </span>
                       </span>
-                      <span className="font-mono text-sm text-slate-200">
+                      <span className="num text-right text-sm text-[#e6ebf0]">
                         {fmtKw(m.currentKw)}
                       </span>
                       <span
-                        className={`font-mono text-sm ${m.currentPf != null && Math.abs(m.currentPf) < data.tenant.pf_reference ? 'text-amber-300' : 'text-slate-300'}`}
+                        className={`num text-right text-sm ${m.currentPf != null && Math.abs(m.currentPf) < data.tenant.pf_reference ? 'text-amber-300' : 'text-[#c7d0da]'}`}
                       >
                         {fmtPf(m.currentPf)}
                       </span>
@@ -467,49 +408,48 @@ export default function Home() {
             </Card>
 
             <div className="grid gap-4">
-              <Card className="panel-card border-0">
-                <CardHeader className="flex-row items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base font-semibold text-white">
-                      Janela atual
-                    </CardTitle>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {c.windowStart
-                        ? `${windowLabel(c.windowStart, tz)} · ${periodLabel(c.periodNow)}`
-                        : 'sem janela aberta'}
-                    </p>
-                  </div>
-                  <Badge
-                    className={
-                      atRisk
-                        ? 'border border-amber-400/20 bg-amber-400/10 text-amber-300'
-                        : 'border border-lime-400/20 bg-lime-400/10 text-lime-300'
-                    }
-                  >
-                    {atRisk ? 'Risco' : 'Normal'}
-                  </Badge>
+              <Card className="fade-up" style={{ animationDelay: '420ms' }}>
+                <CardHeader>
+                  <CardTitle>Janela atual</CardTitle>
+                  <CardDescription>
+                    {c.windowStart
+                      ? `${windowLabel(c.windowStart, tz)} · ${periodLabel(c.periodNow)}`
+                      : 'sem janela aberta'}
+                  </CardDescription>
+                  <CardAction>
+                    <span
+                      className={`chip ${atRisk ? 'chip-amber' : 'chip-lime'}`}
+                    >
+                      {atRisk ? 'Risco' : 'Normal'}
+                    </span>
+                  </CardAction>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-2 flex justify-between text-xs text-slate-400">
-                    <span>
-                      uso {usagePct != null ? `${Math.round(usagePct)}%` : '—'}
-                    </span>
-                    <span>
-                      projeção{' '}
+                  <div className="load-bar">
+                    <i
+                      className={atRisk ? 'bg-amber-300' : ''}
+                      style={{
+                        width: `${Math.min(projectionPct ?? 0, 100)}%`,
+                        background: atRisk ? '#fbbf24' : undefined,
+                      }}
+                    />
+                  </div>
+                  <div className="mt-1.5 flex justify-between text-[11px] text-[#6b7887]">
+                    <span>0%</span>
+                    <span className="num">
                       {projectionPct != null
-                        ? `${Math.round(projectionPct)}%`
+                        ? `${Math.round(projectionPct)}% do contrato`
                         : '—'}
                     </span>
                   </div>
-                  <Progress
-                    value={Math.min(projectionPct ?? 0, 100)}
-                    className="projection-progress"
-                    aria-label="Projeção em relação ao contrato"
-                  />
-                  <div className="mt-4 space-y-2.5">
+                  <div className="mt-3">
                     <div className="detail-row">
                       <span>Contratada</span>
                       <strong>{fmtKw(c.contractedKw, 0)}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Atual</span>
+                      <strong>{fmtKw(c.currentKw)}</strong>
                     </div>
                     <div className="detail-row">
                       <span>Projetada</span>
@@ -518,19 +458,18 @@ export default function Home() {
                       </strong>
                     </div>
                   </div>
-                  <div className="action-note mt-4">
-                    <Clock3 className="mt-0.5 size-4 shrink-0 text-amber-300" />
+                  <div className={`note mt-4 ${atRisk ? 'note-warn' : ''}`}>
                     <p>
                       {atRisk ? (
                         <>
-                          Reduzir ao menos{' '}
-                          <strong>{fmtNumber(excess)} kW</strong> agora mantém a
-                          janela dentro da tolerância.
+                          Reduzir <strong>{fmtNumber(excess)} kW</strong> agora
+                          mantém a janela dentro da tolerância de{' '}
+                          {Math.round(tolerance * 100)}%.
                         </>
                       ) : (
                         <>
-                          Dentro do contrato. Ultrapassagem custa o dobro da
-                          tarifa de demanda.
+                          Dentro do contrato. Uma janela acima da tolerância
+                          custa o dobro da tarifa de demanda no mês.
                         </>
                       )}
                     </p>
@@ -538,38 +477,34 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card className="panel-card border-0">
-                <CardHeader className="flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base font-semibold text-white">
-                      Alertas recentes
-                    </CardTitle>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Eventos que pedem atenção
-                    </p>
-                  </div>
-                  <Link
-                    href="/painel/alertas"
-                    className="text-xs text-slate-400 hover:text-white"
-                  >
-                    Ver todos
-                  </Link>
+              <Card className="fade-up" style={{ animationDelay: '480ms' }}>
+                <CardHeader>
+                  <CardTitle>Alertas recentes</CardTitle>
+                  <CardDescription>Eventos que pedem atenção</CardDescription>
+                  <CardAction>
+                    <Link
+                      href="/painel/alertas"
+                      className="text-xs text-[#8b98a8] hover:text-white"
+                    >
+                      Ver todos
+                    </Link>
+                  </CardAction>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {visibleAlerts.length ? (
-                    visibleAlerts.map((a) => {
+                  {alerts.length ? (
+                    alerts.map((a) => {
                       const Icon =
                         a.tone === 'critical' ? TriangleAlert : Activity;
                       return (
                         <div
-                          className={`alert-item alert-${a.tone}`}
+                          className={`alert-row alert-row-${a.tone}`}
                           key={a.id}
                         >
-                          <span className="alert-icon">
-                            <Icon className="size-4" />
-                          </span>
+                          <Icon
+                            className={`mt-0.5 size-4 shrink-0 ${a.tone === 'critical' ? 'text-rose-400' : 'text-amber-300'}`}
+                          />
                           <div className="min-w-0 flex-1">
-                            <div className="flex justify-between gap-3">
+                            <div className="flex items-start justify-between gap-3">
                               <strong>{a.title}</strong>
                               <time dateTime={a.ts} title={fmtTime(a.ts, tz)}>
                                 {relativeTime(a.ts, now)}
@@ -581,10 +516,10 @@ export default function Home() {
                           </div>
                           <button
                             type="button"
-                            className="ack-button"
+                            className="icon-button -mr-2 size-7"
                             aria-label={`Ocultar: ${a.title}`}
                             title="Ocultar neste navegador"
-                            onClick={() => setAck((x) => [...x, a.id])}
+                            onClick={() => setHidden((x) => [...x, a.id])}
                           >
                             <Check className="size-3.5" />
                           </button>
@@ -592,10 +527,10 @@ export default function Home() {
                       );
                     })
                   ) : (
-                    <div className="grid min-h-28 place-items-center text-center">
+                    <div className="grid min-h-24 place-items-center text-center">
                       <div>
-                        <ShieldCheck className="mx-auto size-6 text-lime-300" />
-                        <p className="mt-2 text-sm text-slate-300">
+                        <ShieldCheck className="mx-auto size-5 text-lime-300" />
+                        <p className="mt-2 text-sm text-[#c7d0da]">
                           Nenhum alerta
                         </p>
                       </div>
@@ -605,7 +540,7 @@ export default function Home() {
               </Card>
             </div>
           </section>
-        </>
+        </div>
       )}
     </AppShell>
   );
