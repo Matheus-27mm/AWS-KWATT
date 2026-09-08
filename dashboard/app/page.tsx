@@ -51,7 +51,7 @@ function Navigation() {
         <div className="relative flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2.5 text-lg font-semibold text-white"
+            className="flex items-center gap-2.5 text-xl font-semibold text-white"
           >
             <span
               className="brand-mark"
@@ -118,7 +118,7 @@ function Navigation() {
 
 function Hero() {
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-start px-6 py-24 md:py-28 animate-[fadeIn_0.6s_ease-out]">
+    <section className="relative flex min-h-screen flex-col items-center justify-start px-6 py-20 md:py-24 animate-[fadeIn_0.6s_ease-out]">
       <aside className="mb-8 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 backdrop-blur-sm">
         <span className="text-center text-xs whitespace-nowrap text-slate-400">
           Alertas de demanda pelo WhatsApp, antes de a janela fechar
