@@ -46,6 +46,11 @@ import {
 } from '@/lib/format';
 import type { DashboardData, MeterView, Range } from '@/lib/model';
 
+const RANGE_ITEMS: Record<Range, string> = {
+  '24h': 'Últimas 24 horas',
+  '7d': 'Últimos 7 dias',
+};
+
 function headline(data: DashboardData): string {
   if (data.consolidated.riskyMeters.length) return 'Fábrica próxima do limite';
   if (data.meters.some((m) => m.status === 'mudo'))
@@ -253,6 +258,7 @@ export default function Home() {
                 </CardDescription>
                 <CardAction>
                   <Select
+                    items={RANGE_ITEMS}
                     value={range}
                     onValueChange={(v) => setRange((v as Range) ?? '24h')}
                   >

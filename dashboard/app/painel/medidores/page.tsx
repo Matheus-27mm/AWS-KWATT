@@ -82,7 +82,7 @@ export default function MedidoresPage() {
       {!data ? (
         <Skeleton className="h-64 rounded-xl bg-white/[.04]" />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(380px,.85fr)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,.75fr)]">
           <Card className="fade-up">
             <CardHeader>
               <CardTitle>Todos os medidores</CardTitle>
@@ -91,7 +91,7 @@ export default function MedidoresPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto px-0">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full min-w-[560px] text-sm">
                 <thead className="text-left text-[11px] text-[#6b7887]">
                   <tr className="border-b border-white/[.07]">
                     <th className="px-4 py-2 font-normal">Medidor</th>
@@ -100,13 +100,10 @@ export default function MedidoresPage() {
                     <th className="px-3 py-2 text-right font-normal">
                       Projeção
                     </th>
-                    <th className="px-3 py-2 text-right font-normal">
+                    <th className="hidden px-3 py-2 text-right font-normal 2xl:table-cell">
                       Contrato
                     </th>
-                    <th className="px-3 py-2 text-right font-normal">FP</th>
-                    <th className="px-4 py-2 text-right font-normal">
-                      Última leitura
-                    </th>
+                    <th className="px-4 py-2 text-right font-normal">FP</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -133,6 +130,9 @@ export default function MedidoresPage() {
                               </span>
                               <span className="block text-xs text-[#6b7887]">
                                 {m.line ?? m.id} · {m.modality}
+                                {m.lastReadingAt
+                                  ? ` · ${relativeTime(m.lastReadingAt, now)}`
+                                  : ''}
                               </span>
                             </span>
                           </button>
@@ -148,18 +148,13 @@ export default function MedidoresPage() {
                         >
                           {fmtKw(m.projectedKw)}
                         </td>
-                        <td className="num px-3 py-3 text-right text-[#c7d0da]">
+                        <td className="num hidden px-3 py-3 text-right text-[#c7d0da] 2xl:table-cell">
                           {fmtKw(m.contractedKw, 0)}
                         </td>
                         <td
-                          className={`num px-3 py-3 text-right ${m.currentPf != null && Math.abs(m.currentPf) < data.tenant.pf_reference ? 'text-amber-300' : 'text-[#c7d0da]'}`}
+                          className={`num px-4 py-3 text-right ${m.currentPf != null && Math.abs(m.currentPf) < data.tenant.pf_reference ? 'text-amber-300' : 'text-[#c7d0da]'}`}
                         >
                           {fmtPf(m.currentPf)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-[#8b98a8]">
-                          {m.lastReadingAt
-                            ? relativeTime(m.lastReadingAt, now)
-                            : '—'}
                         </td>
                       </tr>
                     );
@@ -167,7 +162,7 @@ export default function MedidoresPage() {
                   {meters.length === 0 && (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={6}
                         className="px-4 py-8 text-center text-sm text-[#6b7887]"
                       >
                         Nenhum medidor corresponde à busca.

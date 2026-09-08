@@ -137,11 +137,7 @@ export function DashboardPreview() {
                 icon={Bolt}
                 tone="violet"
                 animate={false}
-                foot={
-                  <span className="label">
-                    janelas fechadas desde a meia-noite
-                  </span>
-                }
+                foot={<span className="label">desde a meia-noite</span>}
               />
               <KpiCard
                 label="Fator de potência"
@@ -157,7 +153,7 @@ export function DashboardPreview() {
                 }
               />
             </div>
-            <div className="mt-3 grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
+            <div className="mt-3 grid grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-3">
               <Card>
                 <CardHeader>
                   <CardTitle>Curva de carga</CardTitle>
@@ -190,6 +186,7 @@ export function DashboardPreview() {
                     shares={c.shares}
                     totalKw={c.currentKw}
                     height={170}
+                    compact
                   />
                 </CardContent>
               </Card>

@@ -132,7 +132,7 @@ function Hero() {
         </a>
       </aside>
 
-      <h1 className="landing-title mb-6 max-w-3xl px-6 text-center text-4xl leading-tight font-medium md:text-5xl lg:text-6xl">
+      <h1 className="landing-title mb-6 max-w-5xl px-6 text-center text-4xl leading-tight font-medium md:text-5xl lg:text-6xl">
         Sua fábrica dentro do contrato, <br className="hidden sm:block" />
         janela por janela
       </h1>

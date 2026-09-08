@@ -42,10 +42,13 @@ export function ShareDonut({
   shares,
   totalKw,
   height = 200,
+  compact = false,
 }: {
   shares: Share[];
   totalKw: number | null;
   height?: number;
+  /** legenda só com nome e percentual (prévias e cartões estreitos) */
+  compact?: boolean;
 }) {
   const reduced = useReducedMotion();
   const [animate, setAnimate] = useState(true);
@@ -62,7 +65,7 @@ export function ShareDonut({
     );
   }
   return (
-    <div className="grid w-full items-center gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(160px,auto)]">
+    <div className="grid w-full items-center gap-6 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="relative" style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -106,7 +109,7 @@ export function ShareDonut({
               <span className="truncate">{s.name}</span>
             </span>
             <span className="num flex gap-3 text-[#8b98a8]">
-              <span>{fmtKw(s.kw, 0)}</span>
+              {!compact && <span>{fmtKw(s.kw, 0)}</span>}
               <span className="w-9 text-right text-white">
                 {fmtNumber(s.pct, 0)}%
               </span>

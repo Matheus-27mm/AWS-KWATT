@@ -75,7 +75,14 @@ export default function AlertasPage() {
       actions={
         data && (
           <div className="hidden items-center gap-2 lg:flex">
-            <Select value={meter} onValueChange={(v) => setMeter(v ?? ALL)}>
+            <Select
+              items={{
+                [ALL]: 'Todos os medidores',
+                ...Object.fromEntries(data.meters.map((m) => [m.id, m.name])),
+              }}
+              value={meter}
+              onValueChange={(v) => setMeter(v ?? ALL)}
+            >
               <SelectTrigger
                 size="sm"
                 className="w-[160px] border-white/10 bg-white/[.03] text-xs"
@@ -91,7 +98,11 @@ export default function AlertasPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={kind} onValueChange={(v) => setKind(v ?? ALL)}>
+            <Select
+              items={{ [ALL]: 'Todos os tipos', ...ALERT_TITLES }}
+              value={kind}
+              onValueChange={(v) => setKind(v ?? ALL)}
+            >
               <SelectTrigger
                 size="sm"
                 className="w-[190px] border-white/10 bg-white/[.03] text-xs"

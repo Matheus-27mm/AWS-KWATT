@@ -166,6 +166,7 @@ export default function AnalisesPage() {
       loading={loading}
       actions={
         <Select
+          items={Object.fromEntries(months.map((m) => [m, monthLabel(m)]))}
           value={activeMonth}
           onValueChange={(v) => setMonth(v ?? months[0])}
         >
